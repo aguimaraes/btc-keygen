@@ -25,6 +25,7 @@
     <ul>
       <li><a href="#why">Why offline?</a></li>
       <li><a href="#how">How it works</a></li>
+      <li><a href="#using-your-keys">Using your keys</a></li>
       <li><a href="#security">Security</a></li>
       <li><a href="#download">Download</a></li>
       <li><a href="#usage">Usage</a></li>
@@ -99,10 +100,14 @@
     <p>Open a terminal and run <code>btc-keygen generate</code>. The tool
     prints two things:</p>
     <ul>
-      <li><strong>A Bitcoin address</strong> &mdash; this is where you receive
-      Bitcoin. You can share it publicly.</li>
-      <li><strong>A WIF private key</strong> &mdash; this is how you spend
-      Bitcoin. Keep it absolutely secret.</li>
+      <li><strong>A Bitcoin address</strong> (starts with <code>bc1q</code>)
+      &mdash; this is like a bank account number. You give it to people so
+      they can send you Bitcoin. It's safe to share publicly.</li>
+      <li><strong>A private key in WIF format</strong> (starts with
+      <code>K</code> or <code>L</code>) &mdash; WIF stands for "Wallet Import
+      Format." It's your private key encoded in a way that any Bitcoin wallet
+      can read. Think of it as the password to your Bitcoin. Anyone who has
+      this string can spend your funds. Keep it absolutely secret.</li>
     </ul>
 
     <h3>Step 4: Write it down</h3>
@@ -122,6 +127,60 @@
       private key. No one can help you &mdash; not the tool, not the
       developers, not anyone. Write it down carefully and store it safely.
     </div>
+  </section>
+
+  <!-- ============================================ -->
+  <section id="using-your-keys">
+    <h2>Using your address and private key</h2>
+
+    <h3>Receiving Bitcoin</h3>
+    <p>To receive Bitcoin, share your <strong>address</strong> (the
+    <code>bc1q...</code> string) with the person or service sending you funds.
+    You can share it by text message, email, or any other channel &mdash; the
+    address is public information and cannot be used to steal your Bitcoin.</p>
+
+    <p>You can check whether Bitcoin has arrived at your address using any
+    public block explorer (for example, search your address on
+    mempool.space or blockchair.com). You do not need your private key to
+    check your balance &mdash; only to spend.</p>
+
+    <h3>Spending Bitcoin</h3>
+    <p>When you want to spend the Bitcoin stored at your address, you need to
+    <strong>import your WIF private key into a wallet application</strong>.
+    Here is how that works with common wallets:</p>
+
+    <ol>
+      <li>Install a Bitcoin wallet that supports WIF import (examples:
+      Electrum, BlueWallet, Sparrow Wallet).</li>
+      <li>Look for an option called "Import," "Sweep," or "Import Private
+      Key." The exact wording varies by wallet.</li>
+      <li>Enter (or scan) the WIF string &mdash; the one starting with
+      <code>K</code> or <code>L</code>.</li>
+      <li>The wallet will recognize the key, find the associated address, and
+      show your balance.</li>
+      <li>You can now send Bitcoin from that address like you would from any
+      wallet.</li>
+    </ol>
+
+    <div class="warning">
+      <strong>Important:</strong> When you import or sweep a private key, you
+      are exposing it to that device. Only do this on a trusted device, ideally
+      one you control. After spending, if you want to continue using cold
+      storage, generate a new keypair for the remaining funds rather than
+      reusing the same key.
+    </div>
+
+    <h3>"Import" vs "Sweep"</h3>
+    <p>Some wallets offer two options:</p>
+    <ul>
+      <li><strong>Import</strong> &mdash; adds the key to the wallet. The
+      wallet now controls that address directly. The funds stay at the same
+      address.</li>
+      <li><strong>Sweep</strong> &mdash; moves all funds from the imported key
+      into a new address controlled by the wallet. The old address ends up
+      empty. This is generally the safer option because the private key is
+      used only once.</li>
+    </ul>
   </section>
 
   <!-- ============================================ -->
@@ -319,9 +378,12 @@ pubkey_hex: 02ab12cd...</code></pre>
       <li><strong>address</strong> &mdash; Your Bitcoin receiving address. Share
       it with anyone who wants to send you Bitcoin. Starts with
       <code>bc1q</code> (native SegWit).</li>
-      <li><strong>wif</strong> &mdash; Wallet Import Format private key. This
-      is the secret that lets you spend Bitcoin sent to the address. Starts
-      with <code>K</code> or <code>L</code>. Keep it secret.</li>
+      <li><strong>wif</strong> &mdash; Wallet Import Format &mdash; your
+      private key encoded in a standard format that any Bitcoin wallet can
+      read. This is the secret that lets you spend Bitcoin sent to the
+      address. Starts with <code>K</code> or <code>L</code>. Keep it secret.
+      See <a href="#using-your-keys">Using your keys</a> for how to use
+      it.</li>
       <li><strong>private_key_hex</strong> &mdash; The raw 32-byte private key
       in hexadecimal. Same key as the WIF, different format. Optional.</li>
       <li><strong>pubkey_hex</strong> &mdash; The compressed public key derived
@@ -359,7 +421,8 @@ pubkey_hex: 02ab12cd...</code></pre>
     <p>No. This is a key generator. It creates a keypair and exits. It cannot
     send Bitcoin, check balances, or interact with the Bitcoin network in any
     way. To spend Bitcoin, you'll need to import the private key into a
-    wallet application.</p>
+    wallet application. See <a href="#using-your-keys">Using your address and
+    private key</a> for step-by-step instructions.</p>
   </section>
 
 </div>
