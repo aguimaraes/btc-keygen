@@ -106,7 +106,7 @@ header .tagline {
 /* Nav — floated sidebar, text wraps around it */
 nav {
   float: right;
-  margin: 0 0 20px 28px;
+  margin: 12px 0 20px 28px;
   padding: 14px 0 14px 20px;
   border-left: 1px solid var(--rule);
   width: auto;
