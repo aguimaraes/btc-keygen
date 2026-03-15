@@ -1,0 +1,159 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test (${{ matrix.name }})
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+          - name: macOS ARM
+            os: macos-14
+          - name: macOS Intel
+            os: macos-13
+          - name: Windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --all-targets
+
+  build:
+    name: Build (${{ matrix.artifact }})
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            artifact: btc-keygen-linux-x86_64
+            setup: sudo apt-get update && sudo apt-get install -y musl-tools
+
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            artifact: btc-keygen-linux-aarch64
+            use_cross: true
+
+          - os: macos-13
+            target: x86_64-apple-darwin
+            artifact: btc-keygen-macos-x86_64
+
+          - os: macos-14
+            target: aarch64-apple-darwin
+            artifact: btc-keygen-macos-aarch64
+
+          - os: windows-latest
+            target: x86_64-pc-windows-gnu
+            artifact: btc-keygen-windows-x86_64.exe
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install platform dependencies
+        if: matrix.setup
+        run: ${{ matrix.setup }}
+
+      - name: Install cross
+        if: matrix.use_cross
+        run: cargo install cross --locked
+
+      - name: Build with cross
+        if: matrix.use_cross
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Build with cargo
+        if: ${{ !matrix.use_cross }}
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Rename binary (Unix)
+        if: runner.os != 'Windows'
+        run: cp target/${{ matrix.target }}/release/btc-keygen ${{ matrix.artifact }}
+
+      - name: Rename binary (Windows)
+        if: runner.os == 'Windows'
+        run: cp target/${{ matrix.target }}/release/btc-keygen.exe ${{ matrix.artifact }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate checksums
+        working-directory: artifacts
+        run: sha256sum btc-keygen-* > SHA256SUMS.txt
+
+      - name: Display checksums
+        working-directory: artifacts
+        run: cat SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd artifacts
+          CHECKSUMS=$(cat SHA256SUMS.txt | while read hash name; do
+            echo "| \`$name\` | \`$hash\` |"
+          done)
+
+          gh release create "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --title "btc-keygen ${{ github.ref_name }}" \
+            --prerelease \
+            --notes "$(cat <<EOF
+          ## btc-keygen ${{ github.ref_name }}
+
+          > **ALPHA SOFTWARE** — This has not been independently audited.
+          > Do not use with funds you cannot afford to lose.
+
+          ### Checksums
+
+          | File | SHA256 |
+          |---|---|
+          $CHECKSUMS
+
+          ### Verify your download
+
+          **Linux / macOS:**
+          \`\`\`
+          sha256sum -c SHA256SUMS.txt
+          \`\`\`
+
+          **Windows (PowerShell):**
+          \`\`\`
+          Get-FileHash btc-keygen-windows-x86_64.exe -Algorithm SHA256
+          \`\`\`
+          EOF
+          )" \
+            btc-keygen-* SHA256SUMS.txt

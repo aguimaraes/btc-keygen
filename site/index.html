@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>btc-keygen - Offline Bitcoin Key Generator</title>
+  <meta name="description" content="Generate Bitcoin private keys offline on an air-gapped machine. No wallet. No network. No trust required.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <h1>btc-<span>keygen</span></h1>
+    <p class="tagline">Generate Bitcoin keys offline. No wallet. No network. No trust.</p>
+  </header>
+
+  <div class="warning">
+    <strong>ALPHA v0.0.1</strong> &mdash; This software has not been independently audited.
+    Use at your own risk. Do not use with funds you cannot afford to lose.
+  </div>
+
+  <nav>
+    <ul>
+      <li><a href="#why">Why offline?</a></li>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#security">Security</a></li>
+      <li><a href="#download">Download</a></li>
+      <li><a href="#usage">Usage</a></li>
+      <li><a href="https://github.com/aguimaraes/btc-keygen">GitHub</a></li>
+    </ul>
+  </nav>
+
+  <!-- ============================================ -->
+  <section id="why">
+    <h2>Why generate keys offline?</h2>
+
+    <p>When you use an exchange or an online wallet, someone else holds your
+    private keys. If they get hacked, go bankrupt, or decide to freeze your
+    account, your Bitcoin is gone. This has happened repeatedly throughout
+    Bitcoin's history.</p>
+
+    <p>The Bitcoin community has a saying: <strong>"not your keys, not your
+    coins."</strong> If you don't personally control the private key, you don't
+    truly own the Bitcoin.</p>
+
+    <p>But generating keys on a computer connected to the internet is also
+    risky. Malware, keyloggers, clipboard hijackers, and compromised software
+    can steal your private key the moment it's created &mdash; before you even
+    know it exists.</p>
+
+    <p>The safest approach is simple: <strong>generate your key on a computer
+    that has never been and will never be connected to the internet.</strong>
+    That way, even if the machine had malware, it would have no way to send
+    your key to an attacker.</p>
+
+    <p>That's what this tool is for.</p>
+  </section>
+
+  <!-- ============================================ -->
+  <section id="how">
+    <h2>How cold storage works</h2>
+
+    <div class="flow">
+      <div class="flow-step">
+        <span class="number">1</span>
+        <span class="label">Air-gapped computer</span>
+      </div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-step">
+        <span class="number">2</span>
+        <span class="label">Run btc-keygen</span>
+      </div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-step">
+        <span class="number">3</span>
+        <span class="label">Write down keys</span>
+      </div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-step">
+        <span class="number">4</span>
+        <span class="label">Store safely</span>
+      </div>
+    </div>
+
+    <h3>Step 1: Get an air-gapped machine</h3>
+    <p>Use any computer that is disconnected from the internet. An old laptop
+    with Wi-Fi disabled works well. A Raspberry Pi is another good option. The
+    key requirement: <strong>no network connection, ever</strong>, while the
+    machine has access to your private key.</p>
+
+    <h3>Step 2: Copy btc-keygen onto the machine</h3>
+    <p>Download the binary on a separate, internet-connected computer. Verify
+    the checksum. Copy it to a USB drive. Plug the USB drive into the
+    air-gapped machine.</p>
+
+    <h3>Step 3: Run the tool</h3>
+    <p>Open a terminal and run <code>btc-keygen generate</code>. The tool
+    prints two things:</p>
+    <ul>
+      <li><strong>A Bitcoin address</strong> &mdash; this is where you receive
+      Bitcoin. You can share it publicly.</li>
+      <li><strong>A WIF private key</strong> &mdash; this is how you spend
+      Bitcoin. Keep it absolutely secret.</li>
+    </ul>
+
+    <h3>Step 4: Write it down</h3>
+    <p>Write both the address and the private key on paper, or stamp them into
+    metal. Do not save them to a file. The tool does not save anything &mdash;
+    once you close the terminal, the key exists only where you wrote it down.</p>
+
+    <h3>Step 5: Store it securely</h3>
+    <p>Put the paper or metal in a safe, a safety deposit box, or another
+    secure location. This is your "cold storage." To receive Bitcoin, give
+    someone the address. To spend it later, you'll import the private key into
+    a wallet.</p>
+
+    <div class="warning">
+      <strong>Critical:</strong> The tool generates a fresh key every time you
+      run it. If you lose your written copy, there is no way to recover the
+      private key. No one can help you &mdash; not the tool, not the
+      developers, not anyone. Write it down carefully and store it safely.
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <section id="security">
+    <h2>Security design</h2>
+
+    <p>This tool was designed as if every run could protect someone's life
+    savings. Here is what's under the hood, in plain language:</p>
+
+    <ul class="features">
+      <li>
+        <strong>Randomness from your OS</strong>
+        Your private key is generated using your operating system's
+        cryptographic random number generator &mdash; the same source used by
+        SSH, TLS, and disk encryption.
+      </li>
+      <li>
+        <strong>Bitcoin Core's own math library</strong>
+        The elliptic curve operations use libsecp256k1, the same code that
+        powers Bitcoin Core. It's the most reviewed implementation in the
+        Bitcoin ecosystem.
+      </li>
+      <li>
+        <strong>Memory is wiped after use</strong>
+        The private key bytes are overwritten in memory the moment the tool
+        finishes. This prevents the key from lingering in RAM.
+      </li>
+      <li>
+        <strong>Zero network code</strong>
+        The tool contains no networking code at all. It cannot connect to the
+        internet, phone home, or leak your keys over any channel.
+      </li>
+      <li>
+        <strong>Minimal and auditable</strong>
+        The entire codebase is under 500 lines of Rust with 6 dependencies.
+        A competent developer can read and verify the entire program in an
+        afternoon.
+      </li>
+      <li>
+        <strong>60 automated tests</strong>
+        Every component is tested against known Bitcoin test vectors, ensuring
+        the keys and addresses the tool generates are valid on the real Bitcoin
+        network.
+      </li>
+    </ul>
+
+    <div class="warning">
+      <strong>Alpha software:</strong> This tool has not been independently
+      audited by a third-party security firm. The test suite is comprehensive,
+      the code is minimal, and the cryptographic primitives come from
+      well-reviewed libraries &mdash; but until an independent audit is
+      performed, treat this as experimental. Do not use it with amounts you
+      cannot afford to lose.
+    </div>
+
+    <p>For the full technical threat model, security assumptions, and
+    dependency analysis, see the
+    <a href="https://github.com/aguimaraes/btc-keygen/tree/main/docs">design
+    documentation</a> in the repository.</p>
+  </section>
+
+  <!-- ============================================ -->
+  <section id="download">
+    <h2>Download</h2>
+
+    <p>Pre-built binaries are available for every major platform. Each binary
+    is a single file with no dependencies &mdash; download it, verify the
+    checksum, and run it.</p>
+
+    <div class="warning">
+      <strong>Always verify the checksum.</strong> Download the
+      <code>SHA256SUMS.txt</code> file from the release and compare it against
+      the binary you downloaded. This ensures the file hasn't been tampered
+      with.
+    </div>
+
+    <p><a href="https://github.com/aguimaraes/btc-keygen/releases/latest">
+    Download the latest release from GitHub</a></p>
+
+    <div class="platform">
+      <h3>Linux (x86_64)</h3>
+      <pre><code># Download
+curl -LO https://github.com/aguimaraes/btc-keygen/releases/latest/download/btc-keygen-linux-x86_64
+
+# Verify checksum
+sha256sum btc-keygen-linux-x86_64
+
+# Make executable and run
+chmod +x btc-keygen-linux-x86_64
+./btc-keygen-linux-x86_64 generate</code></pre>
+    </div>
+
+    <div class="platform">
+      <h3>Linux (ARM64 / Raspberry Pi)</h3>
+      <pre><code># Download
+curl -LO https://github.com/aguimaraes/btc-keygen/releases/latest/download/btc-keygen-linux-aarch64
+
+# Verify checksum
+sha256sum btc-keygen-linux-aarch64
+
+# Make executable and run
+chmod +x btc-keygen-linux-aarch64
+./btc-keygen-linux-aarch64 generate</code></pre>
+    </div>
+
+    <div class="platform">
+      <h3>macOS (Apple Silicon)</h3>
+      <pre><code># Download
+curl -LO https://github.com/aguimaraes/btc-keygen/releases/latest/download/btc-keygen-macos-aarch64
+
+# Verify checksum
+shasum -a 256 btc-keygen-macos-aarch64
+
+# Make executable and run
+chmod +x btc-keygen-macos-aarch64
+./btc-keygen-macos-aarch64 generate</code></pre>
+      <p>macOS may show a Gatekeeper warning. To bypass:
+      <code>xattr -d com.apple.quarantine btc-keygen-macos-aarch64</code></p>
+    </div>
+
+    <div class="platform">
+      <h3>macOS (Intel)</h3>
+      <pre><code># Download
+curl -LO https://github.com/aguimaraes/btc-keygen/releases/latest/download/btc-keygen-macos-x86_64
+
+# Verify checksum
+shasum -a 256 btc-keygen-macos-x86_64
+
+# Make executable and run
+chmod +x btc-keygen-macos-x86_64
+./btc-keygen-macos-x86_64 generate</code></pre>
+    </div>
+
+    <div class="platform">
+      <h3>Windows</h3>
+      <pre><code># Download btc-keygen-windows-x86_64.exe from the release page
+
+# Verify checksum (PowerShell)
+Get-FileHash btc-keygen-windows-x86_64.exe -Algorithm SHA256
+
+# Run
+.\btc-keygen-windows-x86_64.exe generate</code></pre>
+    </div>
+
+    <div class="platform">
+      <h3>Build from source (any platform)</h3>
+      <p>Requires <a href="https://www.rust-lang.org/tools/install">Rust</a>
+      and a C compiler (gcc, clang, or MSVC).</p>
+      <pre><code>git clone https://github.com/aguimaraes/btc-keygen.git
+cd btc-keygen
+cargo build --release
+./target/release/btc-keygen generate</code></pre>
+    </div>
+
+    <div class="platform">
+      <h3>BSD</h3>
+      <p>Pre-built binaries are not provided for BSD. Build from source using
+      the instructions above. The tool compiles and runs correctly on FreeBSD,
+      OpenBSD, and NetBSD.</p>
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <section id="usage">
+    <h2>Usage</h2>
+
+    <h3>Basic: generate a keypair</h3>
+    <pre><code>$ btc-keygen generate
+address: bc1q...
+wif: K...</code></pre>
+    <p>This prints the Bitcoin address and the WIF private key. That's all you
+    need to receive and later spend Bitcoin.</p>
+
+    <h3>Include the raw private key in hex</h3>
+    <pre><code>$ btc-keygen generate --hex
+address: bc1q...
+wif: K...
+private_key_hex: ab12cd...</code></pre>
+
+    <h3>Include the compressed public key</h3>
+    <pre><code>$ btc-keygen generate --pubkey
+address: bc1q...
+wif: K...
+pubkey_hex: 02ab12cd...</code></pre>
+
+    <h3>JSON output (for scripts)</h3>
+    <pre><code>$ btc-keygen generate --json
+{"address":"bc1q...","wif":"K..."}</code></pre>
+
+    <h3>All options combined</h3>
+    <pre><code>$ btc-keygen generate --hex --pubkey --json</code></pre>
+
+    <h3>What each field means</h3>
+    <ul>
+      <li><strong>address</strong> &mdash; Your Bitcoin receiving address. Share
+      it with anyone who wants to send you Bitcoin. Starts with
+      <code>bc1q</code> (native SegWit).</li>
+      <li><strong>wif</strong> &mdash; Wallet Import Format private key. This
+      is the secret that lets you spend Bitcoin sent to the address. Starts
+      with <code>K</code> or <code>L</code>. Keep it secret.</li>
+      <li><strong>private_key_hex</strong> &mdash; The raw 32-byte private key
+      in hexadecimal. Same key as the WIF, different format. Optional.</li>
+      <li><strong>pubkey_hex</strong> &mdash; The compressed public key derived
+      from the private key. Not secret, but not needed for basic use.
+      Optional.</li>
+    </ul>
+  </section>
+
+  <!-- ============================================ -->
+  <section id="faq">
+    <h2>Frequently asked questions</h2>
+
+    <h3>Can I run this tool again to get the same key?</h3>
+    <p>No. Every run generates a completely new, random keypair. There is no
+    way to recreate a previous key. Write it down the first time.</p>
+
+    <h3>What if I lose my private key?</h3>
+    <p>Any Bitcoin sent to that address is permanently inaccessible. There is
+    no recovery mechanism. This is by design &mdash; if anyone could recover
+    your key, so could an attacker.</p>
+
+    <h3>Why not use a hardware wallet?</h3>
+    <p>Hardware wallets are a good option. This tool is an alternative for
+    people who prefer not to trust a hardware device manufactured by a
+    third party, or who want a simple, verifiable way to generate a single
+    key for long-term storage.</p>
+
+    <h3>Why not use a BIP39 mnemonic (seed words)?</h3>
+    <p>Mnemonic phrases are useful for HD wallets that generate many addresses.
+    This tool intentionally generates a single standalone key. It's simpler,
+    easier to audit, and sufficient for cold storage of a single address.
+    BIP39 support may be considered in a future version.</p>
+
+    <h3>Is this a wallet?</h3>
+    <p>No. This is a key generator. It creates a keypair and exits. It cannot
+    send Bitcoin, check balances, or interact with the Bitcoin network in any
+    way. To spend Bitcoin, you'll need to import the private key into a
+    wallet application.</p>
+  </section>
+
+</div>
+
+<footer>
+  <div class="container">
+    <div class="warning">
+      <strong>ALPHA v0.0.1</strong> &mdash; Not independently audited. Do not
+      use with funds you cannot afford to lose.
+    </div>
+    <p><a href="https://github.com/aguimaraes/btc-keygen">Source code on GitHub</a>
+    &middot;
+    <a href="https://github.com/aguimaraes/btc-keygen/tree/main/docs">Technical documentation</a></p>
+    <p>btc-keygen is open source software, dual-licensed under
+    <a href="https://github.com/aguimaraes/btc-keygen/blob/main/LICENSE-MIT">MIT</a> and
+    <a href="https://github.com/aguimaraes/btc-keygen/blob/main/LICENSE-APACHE">Apache 2.0</a>.</p>
+  </div>
+</footer>
+
+</body>
+</html>
