@@ -20,15 +20,13 @@ jobs:
         include:
           - name: Linux
             os: ubuntu-latest
-          - name: macOS ARM
-            os: macos-14
-          - name: macOS Intel
-            os: macos-13
+          - name: macOS
+            os: macos-latest
           - name: Windows
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --all-targets
 
@@ -48,11 +46,11 @@ jobs:
             artifact: btc-keygen-linux-aarch64
             use_cross: true
 
-          - os: macos-13
+          - os: macos-latest
             target: x86_64-apple-darwin
             artifact: btc-keygen-macos-x86_64
 
-          - os: macos-14
+          - os: macos-latest
             target: aarch64-apple-darwin
             artifact: btc-keygen-macos-aarch64
 
@@ -62,7 +60,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -102,7 +100,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
