@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://aguimaraes.github.io/btc-keygen/sitemap.xml
