@@ -1,9 +1,9 @@
+pub mod address;
 pub mod entropy;
 pub mod keygen;
-pub mod wif;
-pub mod pubkey;
-pub mod address;
 pub mod output;
+pub mod pubkey;
+pub mod wif;
 
 #[cfg(test)]
 mod pipeline_tests {
@@ -31,12 +31,17 @@ mod pipeline_tests {
         assert_eq!(private_key.as_bytes(), &key_bytes);
 
         let wif_str = wif::encode_wif(private_key.as_bytes());
-        assert_eq!(wif_str, "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn");
+        assert_eq!(
+            wif_str,
+            "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+        );
 
         let secret_key = private_key.to_secret_key();
         let compressed_pubkey = pubkey::derive_pubkey(&secret_key);
-        let pubkey_hex: String =
-            compressed_pubkey.iter().map(|b| format!("{:02x}", b)).collect();
+        let pubkey_hex: String = compressed_pubkey
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect();
         assert_eq!(
             pubkey_hex,
             "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
@@ -57,12 +62,17 @@ mod pipeline_tests {
 
         let wif_str = wif::encode_wif(private_key.as_bytes());
         // WIF for private key = 2 (compressed, mainnet).
-        assert_eq!(wif_str, "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU74NMTptX4");
+        assert_eq!(
+            wif_str,
+            "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU74NMTptX4"
+        );
 
         let secret_key = private_key.to_secret_key();
         let compressed_pubkey = pubkey::derive_pubkey(&secret_key);
-        let pubkey_hex: String =
-            compressed_pubkey.iter().map(|b| format!("{:02x}", b)).collect();
+        let pubkey_hex: String = compressed_pubkey
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect();
         assert_eq!(
             pubkey_hex,
             "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"
@@ -95,6 +105,9 @@ mod pipeline_tests {
         assert_ne!(key_a.as_bytes(), key_b.as_bytes());
         assert_ne!(pubkey_a, pubkey_b);
         assert_ne!(addr_a, addr_b);
-        assert_ne!(wif::encode_wif(key_a.as_bytes()), wif::encode_wif(key_b.as_bytes()));
+        assert_ne!(
+            wif::encode_wif(key_a.as_bytes()),
+            wif::encode_wif(key_b.as_bytes())
+        );
     }
 }

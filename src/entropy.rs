@@ -24,8 +24,7 @@ pub struct OsEntropy;
 
 impl EntropySource for OsEntropy {
     fn fill_bytes(&self, dest: &mut [u8]) -> Result<(), EntropyError> {
-        getrandom::getrandom(dest)
-            .map_err(|e| EntropyError(format!("OS CSPRNG failed: {}", e)))
+        getrandom::getrandom(dest).map_err(|e| EntropyError(format!("OS CSPRNG failed: {}", e)))
     }
 }
 

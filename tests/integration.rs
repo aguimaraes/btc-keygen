@@ -37,8 +37,7 @@ fn test_cli_generate_stdout_has_address_and_wif() {
     // WIF for compressed mainnet keys starts with K or L.
     let has_wif = stdout.lines().any(|line| {
         let trimmed = line.trim();
-        (trimmed.starts_with('K') || trimmed.starts_with('L'))
-            && trimmed.len() == 52
+        (trimmed.starts_with('K') || trimmed.starts_with('L')) && trimmed.len() == 52
     });
     // Also check if the WIF appears as a value in a key:value line.
     let has_wif_in_field = stdout.lines().any(|line| {
@@ -60,10 +59,7 @@ fn test_cli_generate_stdout_has_address_and_wif() {
 fn test_cli_generate_stderr_has_warnings() {
     let output = run_btc_keygen(&["generate"]);
     let stderr = String::from_utf8(output.stderr).unwrap();
-    assert!(
-        !stderr.is_empty(),
-        "stderr must contain safety warnings"
-    );
+    assert!(!stderr.is_empty(), "stderr must contain safety warnings");
 }
 
 #[test]
@@ -85,12 +81,9 @@ fn test_cli_hex_flag() {
 
     let stdout = String::from_utf8(output.stdout).unwrap();
     // Must contain a 64-character hex string (the raw private key).
-    let has_hex = stdout.lines().any(|line| {
-        line.chars()
-            .filter(|c| c.is_ascii_hexdigit())
-            .count()
-            >= 64
-    });
+    let has_hex = stdout
+        .lines()
+        .any(|line| line.chars().filter(|c| c.is_ascii_hexdigit()).count() >= 64);
     assert!(
         has_hex,
         "stdout with --hex must contain 64-char hex string, got:\n{stdout}"
@@ -121,8 +114,7 @@ fn test_cli_all_flags_json() {
     assert!(output.status.success());
 
     let stdout = String::from_utf8(output.stdout).unwrap();
-    let parsed: serde_json::Value =
-        serde_json::from_str(&stdout).expect("JSON must be valid");
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("JSON must be valid");
     assert!(parsed.get("address").is_some());
     assert!(parsed.get("wif").is_some());
     assert!(parsed.get("private_key_hex").is_some());
@@ -220,8 +212,7 @@ fn test_no_file_artifacts() {
 #[test]
 fn test_no_env_mutation() {
     // Capture a snapshot of env vars before running the binary.
-    let env_before: std::collections::HashMap<String, String> =
-        std::env::vars().collect();
+    let env_before: std::collections::HashMap<String, String> = std::env::vars().collect();
 
     let output = run_btc_keygen(&["generate"]);
     assert!(output.status.success());
@@ -230,8 +221,7 @@ fn test_no_env_mutation() {
     // The child process runs in its own address space, so it cannot mutate
     // our env. This test confirms the tool's design — it communicates only
     // via stdout/stderr, not environment variables.
-    let env_after: std::collections::HashMap<String, String> =
-        std::env::vars().collect();
+    let env_after: std::collections::HashMap<String, String> = std::env::vars().collect();
 
     assert_eq!(
         env_before, env_after,
@@ -252,7 +242,15 @@ fn test_no_network_deps() {
         .expect("cargo tree must succeed");
     let tree = String::from_utf8(output.stdout).unwrap();
 
-    let banned = ["reqwest", "hyper", "tokio", "async-std", "surf", "ureq", "curl"];
+    let banned = [
+        "reqwest",
+        "hyper",
+        "tokio",
+        "async-std",
+        "surf",
+        "ureq",
+        "curl",
+    ];
     for crate_name in &banned {
         assert!(
             !tree.lines().any(|line| line.starts_with(crate_name)),

@@ -14,8 +14,7 @@ pub fn derive_address(compressed_pubkey: &[u8; 33]) -> String {
 
     // Step 2: Bech32 encode with HRP "bc", witness version 0
     let hrp = bech32::Hrp::parse("bc").expect("valid HRP");
-    bech32::segwit::encode_v0(hrp, witness_program)
-        .expect("valid witness program")
+    bech32::segwit::encode_v0(hrp, witness_program).expect("valid witness program")
 }
 
 #[cfg(test)]
@@ -26,8 +25,7 @@ mod tests {
         assert_eq!(hex.len(), 66);
         let mut bytes = [0u8; 33];
         for i in 0..33 {
-            bytes[i] =
-                u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).unwrap();
+            bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).unwrap();
         }
         bytes
     }
@@ -39,9 +37,8 @@ mod tests {
     // Bech32 address: bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4
     #[test]
     fn test_address_from_generator_point() {
-        let pubkey = hex_to_33_bytes(
-            "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
-        );
+        let pubkey =
+            hex_to_33_bytes("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
         let address = derive_address(&pubkey);
         assert_eq!(address, "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
     }
@@ -52,18 +49,16 @@ mod tests {
     // Bech32: bc1qq6hag67dl53wl99vzg42z8eyzfz2xlkvxechjp
     #[test]
     fn test_address_from_scalar_two() {
-        let pubkey = hex_to_33_bytes(
-            "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5",
-        );
+        let pubkey =
+            hex_to_33_bytes("02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5");
         let address = derive_address(&pubkey);
         assert_eq!(address, "bc1qq6hag67dl53wl99vzg42z8eyzfz2xlkvxechjp");
     }
 
     #[test]
     fn test_address_starts_with_bc1q() {
-        let pubkey = hex_to_33_bytes(
-            "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
-        );
+        let pubkey =
+            hex_to_33_bytes("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
         let address = derive_address(&pubkey);
         assert!(
             address.starts_with("bc1q"),
@@ -74,9 +69,8 @@ mod tests {
 
     #[test]
     fn test_address_length_42() {
-        let pubkey = hex_to_33_bytes(
-            "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
-        );
+        let pubkey =
+            hex_to_33_bytes("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
         let address = derive_address(&pubkey);
         assert_eq!(
             address.len(),
@@ -88,9 +82,8 @@ mod tests {
 
     #[test]
     fn test_address_is_lowercase() {
-        let pubkey = hex_to_33_bytes(
-            "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
-        );
+        let pubkey =
+            hex_to_33_bytes("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
         let address = derive_address(&pubkey);
         assert_eq!(
             address,
@@ -101,16 +94,18 @@ mod tests {
 
     #[test]
     fn test_address_valid_bech32_charset() {
-        let pubkey = hex_to_33_bytes(
-            "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
-        );
+        let pubkey =
+            hex_to_33_bytes("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
         let address = derive_address(&pubkey);
 
         // Bech32 valid characters (after the separator '1').
         let bech32_chars = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
         // Split at the separator.
-        let data_part = address.split('1').nth(1).expect("must contain separator '1'");
+        let data_part = address
+            .split('1')
+            .nth(1)
+            .expect("must contain separator '1'");
         for ch in data_part.chars() {
             assert!(
                 bech32_chars.contains(ch),
