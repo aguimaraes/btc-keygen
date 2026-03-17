@@ -17,8 +17,7 @@ mod tests {
     fn secret_key_from_hex(hex: &str) -> SecretKey {
         let mut bytes = [0u8; 32];
         for i in 0..32 {
-            bytes[i] =
-                u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).unwrap();
+            bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).unwrap();
         }
         SecretKey::from_slice(&bytes).unwrap()
     }
@@ -31,9 +30,8 @@ mod tests {
     // Compressed: 02 79BE667E F9DCBBAC 55A06295 CE870B07 029BFCDB 2DCE28D9 59F2815B 16F81798
     #[test]
     fn test_pubkey_vector_generator_point() {
-        let sk = secret_key_from_hex(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-        );
+        let sk =
+            secret_key_from_hex("0000000000000000000000000000000000000000000000000000000000000001");
         let pubkey = derive_pubkey(&sk);
         let hex = bytes_to_hex(&pubkey);
         assert_eq!(
@@ -46,9 +44,8 @@ mod tests {
     // Compressed public key is well-known.
     #[test]
     fn test_pubkey_vector_scalar_two() {
-        let sk = secret_key_from_hex(
-            "0000000000000000000000000000000000000000000000000000000000000002",
-        );
+        let sk =
+            secret_key_from_hex("0000000000000000000000000000000000000000000000000000000000000002");
         let pubkey = derive_pubkey(&sk);
         let hex = bytes_to_hex(&pubkey);
         assert_eq!(
@@ -77,9 +74,8 @@ mod tests {
 
     #[test]
     fn test_pubkey_length_33_bytes() {
-        let sk = secret_key_from_hex(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-        );
+        let sk =
+            secret_key_from_hex("0000000000000000000000000000000000000000000000000000000000000001");
         let pubkey = derive_pubkey(&sk);
         assert_eq!(pubkey.len(), 33);
     }

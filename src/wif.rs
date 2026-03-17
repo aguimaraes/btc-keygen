@@ -27,8 +27,7 @@ pub fn encode_wif(private_key_bytes: &[u8; 32]) -> String {
     base58_encode(&data)
 }
 
-const BASE58_ALPHABET: &[u8; 58] =
-    b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const BASE58_ALPHABET: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 fn base58_encode(data: &[u8]) -> String {
     // Count leading zeros — each becomes a '1' in Base58.
@@ -75,8 +74,7 @@ mod tests {
     fn hex_to_32_bytes(hex: &str) -> [u8; 32] {
         let mut bytes = [0u8; 32];
         for i in 0..32 {
-            bytes[i] =
-                u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).unwrap();
+            bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).unwrap();
         }
         bytes
     }
@@ -85,9 +83,8 @@ mod tests {
     // Source: Bitcoin wiki, widely published test vector.
     #[test]
     fn test_wif_vector_scalar_one() {
-        let key = hex_to_32_bytes(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-        );
+        let key =
+            hex_to_32_bytes("0000000000000000000000000000000000000000000000000000000000000001");
         let wif = encode_wif(&key);
         assert_eq!(wif, "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn");
     }
@@ -97,9 +94,8 @@ mod tests {
     // Compressed WIF: KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617
     #[test]
     fn test_wif_vector_two() {
-        let key = hex_to_32_bytes(
-            "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D",
-        );
+        let key =
+            hex_to_32_bytes("0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D");
         let wif = encode_wif(&key);
         assert_eq!(wif, "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617");
     }
@@ -108,15 +104,9 @@ mod tests {
     fn test_wif_starts_with_k_or_l() {
         // A few different valid keys.
         let keys: Vec<[u8; 32]> = vec![
-            hex_to_32_bytes(
-                "0000000000000000000000000000000000000000000000000000000000000001",
-            ),
-            hex_to_32_bytes(
-                "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140",
-            ),
-            hex_to_32_bytes(
-                "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
-            ),
+            hex_to_32_bytes("0000000000000000000000000000000000000000000000000000000000000001"),
+            hex_to_32_bytes("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140"),
+            hex_to_32_bytes("0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"),
         ];
 
         for key in &keys {
@@ -131,9 +121,8 @@ mod tests {
 
     #[test]
     fn test_wif_length_52() {
-        let key = hex_to_32_bytes(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-        );
+        let key =
+            hex_to_32_bytes("0000000000000000000000000000000000000000000000000000000000000001");
         let wif = encode_wif(&key);
         assert_eq!(
             wif.len(),
@@ -144,9 +133,8 @@ mod tests {
 
     #[test]
     fn test_wif_valid_base58_characters() {
-        let key = hex_to_32_bytes(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-        );
+        let key =
+            hex_to_32_bytes("0000000000000000000000000000000000000000000000000000000000000001");
         let wif = encode_wif(&key);
         let base58_alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
         for ch in wif.chars() {
@@ -165,7 +153,9 @@ mod tests {
 
         let mut num: Vec<u8> = Vec::new();
         for ch in s.bytes() {
-            let val = alphabet.iter().position(|&b| b == ch)
+            let val = alphabet
+                .iter()
+                .position(|&b| b == ch)
                 .expect("invalid base58 character") as u32;
 
             let mut carry = val;
@@ -189,9 +179,8 @@ mod tests {
     fn test_wif_checksum_valid() {
         use bitcoin_hashes::{sha256, Hash};
 
-        let key = hex_to_32_bytes(
-            "0000000000000000000000000000000000000000000000000000000000000001",
-        );
+        let key =
+            hex_to_32_bytes("0000000000000000000000000000000000000000000000000000000000000001");
         let wif = encode_wif(&key);
         let decoded = base58_decode(&wif);
 
@@ -214,7 +203,14 @@ mod tests {
 
         // Also verify payload structure.
         assert_eq!(payload[0], 0x80, "first byte must be mainnet prefix 0x80");
-        assert_eq!(&payload[1..33], key.as_slice(), "bytes 1-32 must be the private key");
-        assert_eq!(payload[33], 0x01, "last payload byte must be 0x01 (compressed flag)");
+        assert_eq!(
+            &payload[1..33],
+            key.as_slice(),
+            "bytes 1-32 must be the private key"
+        );
+        assert_eq!(
+            payload[33], 0x01,
+            "last payload byte must be 0x01 (compressed flag)"
+        );
     }
 }

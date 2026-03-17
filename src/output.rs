@@ -31,14 +31,26 @@ pub fn print_output(keypair: &KeypairOutput, format: Format) -> io::Result<()> {
 pub fn print_warnings(stderr: &mut dyn Write) -> io::Result<()> {
     writeln!(stderr, "=== btc-keygen: one-time key generation ===")?;
     writeln!(stderr)?;
-    writeln!(stderr, "The address and private key printed below belong together.")?;
-    writeln!(stderr, "The private key is required to spend funds sent to this address.")?;
+    writeln!(
+        stderr,
+        "The address and private key printed below belong together."
+    )?;
+    writeln!(
+        stderr,
+        "The private key is required to spend funds sent to this address."
+    )?;
     writeln!(stderr)?;
     writeln!(stderr, "This tool does not save or store any secrets.")?;
-    writeln!(stderr, "If you lose the private key output, funds sent to this address")?;
+    writeln!(
+        stderr,
+        "If you lose the private key output, funds sent to this address"
+    )?;
     writeln!(stderr, "may be permanently inaccessible.")?;
     writeln!(stderr)?;
-    writeln!(stderr, "Re-running this tool generates a new, different keypair.")?;
+    writeln!(
+        stderr,
+        "Re-running this tool generates a new, different keypair."
+    )?;
     writeln!(stderr, "It does NOT recover a previously generated key.")?;
     writeln!(stderr, "================================================")?;
     Ok(())
@@ -100,12 +112,10 @@ mod tests {
             address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4".into(),
             wif: "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn".into(),
             private_key_hex: Some(
-                "0000000000000000000000000000000000000000000000000000000000000001"
-                    .into(),
+                "0000000000000000000000000000000000000000000000000000000000000001".into(),
             ),
             pubkey_hex: Some(
-                "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
-                    .into(),
+                "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798".into(),
             ),
         }
     }
@@ -120,10 +130,7 @@ mod tests {
         let kp = sample_keypair();
         format_output(&mut buf, &kp, Format::Plain).unwrap();
         let output = String::from_utf8(buf).unwrap();
-        assert!(
-            output.contains("bc1q"),
-            "plain output must contain address"
-        );
+        assert!(output.contains("bc1q"), "plain output must contain address");
     }
 
     #[test]
@@ -155,9 +162,7 @@ mod tests {
         format_output(&mut buf, &kp, Format::Plain).unwrap();
         let output = String::from_utf8(buf).unwrap();
         assert!(
-            output.contains(
-                "0000000000000000000000000000000000000000000000000000000000000001"
-            ),
+            output.contains("0000000000000000000000000000000000000000000000000000000000000001"),
             "output must include hex when field is Some"
         );
     }
@@ -169,9 +174,7 @@ mod tests {
         format_output(&mut buf, &kp, Format::Plain).unwrap();
         let output = String::from_utf8(buf).unwrap();
         assert!(
-            output.contains(
-                "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
-            ),
+            output.contains("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"),
             "output must include pubkey hex when field is Some"
         );
     }
@@ -198,10 +201,7 @@ mod tests {
             parsed.get("address").is_some(),
             "JSON must have 'address' field"
         );
-        assert!(
-            parsed.get("wif").is_some(),
-            "JSON must have 'wif' field"
-        );
+        assert!(parsed.get("wif").is_some(), "JSON must have 'wif' field");
     }
 
     #[test]
