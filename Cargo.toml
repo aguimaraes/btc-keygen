@@ -1,13 +1,15 @@
 [package]
 name = "btc-keygen"
-version = "0.0.1"
-edition = "2021"
+version = "0.0.2"
+edition = "2024"
+rust-version = "1.94"
 description = "Minimal offline Bitcoin key generator for cold storage"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/aguimaraes/btc-keygen"
 homepage = "https://aguimaraes.github.io/btc-keygen"
 keywords = ["bitcoin", "keygen", "cold-storage", "offline"]
 categories = ["cryptography", "command-line-utilities"]
+exclude = ["docs/", "site/", ".github/", ".editorconfig"]
 
 [dependencies]
 secp256k1 = { version = "0.29", features = ["rand-std"] }
