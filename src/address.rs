@@ -6,7 +6,7 @@
 ///
 /// The resulting address starts with "bc1q" and is 42 characters long.
 pub fn derive_address(compressed_pubkey: &[u8; 33]) -> String {
-    use bitcoin_hashes::{hash160, Hash};
+    use bitcoin_hashes::{Hash, hash160};
 
     // Step 1: Hash160 = RIPEMD160(SHA256(pubkey))
     let hash = hash160::Hash::hash(compressed_pubkey);

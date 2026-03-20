@@ -14,7 +14,7 @@ pub fn encode_wif(private_key_bytes: &[u8; 32]) -> String {
     payload[33] = 0x01;
 
     // Checksum: first 4 bytes of SHA256(SHA256(payload))
-    use bitcoin_hashes::{sha256, Hash};
+    use bitcoin_hashes::{Hash, sha256};
     let hash1 = sha256::Hash::hash(&payload);
     let hash2 = sha256::Hash::hash(hash1.as_ref());
     let checksum = &hash2[..4];
@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_wif_checksum_valid() {
-        use bitcoin_hashes::{sha256, Hash};
+        use bitcoin_hashes::{Hash, sha256};
 
         let key =
             hex_to_32_bytes("0000000000000000000000000000000000000000000000000000000000000001");
