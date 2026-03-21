@@ -26,10 +26,34 @@ Every run creates a new keypair. The tool does not store secrets. If you lose th
 - JSON output for scripting
 - Memory zeroization of secret material on exit
 - Zero network code — fully offline
-- 60 automated tests including known-answer vectors
+- 62 automated tests including known-answer vectors
 - Cross-platform: Linux, macOS, Windows, BSDs
 
-## Install
+## Library usage
+
+Add to your project:
+
+```
+cargo add btc-keygen
+```
+
+```rust
+let key = btc_keygen::generate()?;
+let wif = btc_keygen::encode_wif(&key);
+let pubkey = btc_keygen::derive_pubkey(&key);
+let address = btc_keygen::derive_address(&pubkey);
+```
+
+| Function | Input | Output |
+|---|---|---|
+| `generate()` | — | `Result<PrivateKey, Error>` |
+| `encode_wif(&key)` | `&PrivateKey` | `String` (starts with `K` or `L`) |
+| `derive_pubkey(&key)` | `&PrivateKey` | `[u8; 33]` (compressed public key) |
+| `derive_address(&pubkey)` | `&[u8; 33]` | `String` (Bech32 address, `bc1q...`) |
+
+`PrivateKey` zeroizes its bytes when dropped. Full API docs at [docs.rs/btc-keygen](https://docs.rs/btc-keygen).
+
+## Install (CLI)
 
 Download a pre-built binary from the [latest release](https://github.com/aguimaraes/btc-keygen/releases/latest), verify the SHA256 checksum, and run it.
 
