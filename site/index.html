@@ -42,6 +42,7 @@
       <li><a href="#security">Security</a></li>
       <li><a href="#download">Download</a></li>
       <li><a href="#usage">Usage</a></li>
+      <li><a href="#developers">For developers</a></li>
       <li><a href="https://github.com/aguimaraes/btc-keygen">GitHub</a></li>
     </ul>
   </nav>
@@ -436,6 +437,80 @@ pubkey_hex: 02ab12cd...</code></pre>
     way. To spend Bitcoin, you'll need to import the private key into a
     wallet application. See <a href="#using-your-keys">Using your address and
     private key</a> for step-by-step instructions.</p>
+  </section>
+
+  <!-- ============================================ -->
+  <section id="developers">
+    <h2>For developers</h2>
+
+    <p>btc-keygen is also available as a Rust library. If you are building
+    software that needs to generate Bitcoin keys, you can use it as a
+    dependency instead of shelling out to the binary.</p>
+
+    <h3>Add to your project</h3>
+    <pre><code>cargo add btc-keygen</code></pre>
+
+    <h3>API</h3>
+    <p>The library exposes four functions and one type:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Function</th>
+          <th>Input</th>
+          <th>Output</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>generate()</code></td>
+          <td>&mdash;</td>
+          <td><code>Result&lt;PrivateKey, Error&gt;</code></td>
+        </tr>
+        <tr>
+          <td><code>encode_wif(&amp;key)</code></td>
+          <td><code>&amp;PrivateKey</code></td>
+          <td><code>String</code> &mdash; starts with <code>K</code> or <code>L</code></td>
+        </tr>
+        <tr>
+          <td><code>derive_pubkey(&amp;key)</code></td>
+          <td><code>&amp;PrivateKey</code></td>
+          <td><code>[u8; 33]</code> &mdash; compressed public key</td>
+        </tr>
+        <tr>
+          <td><code>derive_address(&amp;pubkey)</code></td>
+          <td><code>&amp;[u8; 33]</code></td>
+          <td><code>String</code> &mdash; Bech32 address (<code>bc1q...</code>)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Example</h3>
+    <pre><code>use btc_keygen;
+
+fn main() -> Result&lt;(), btc_keygen::Error&gt; {
+    // 1. Generate a private key from OS randomness
+    let key = btc_keygen::generate()?;
+
+    // 2. Encode as WIF (for wallet import)
+    let wif = btc_keygen::encode_wif(&amp;key);
+
+    // 3. Derive the compressed public key
+    let pubkey = btc_keygen::derive_pubkey(&amp;key);
+
+    // 4. Derive the Bitcoin address
+    let address = btc_keygen::derive_address(&amp;pubkey);
+
+    println!("Address: {address}");
+    println!("WIF:     {wif}");
+    Ok(())
+}</code></pre>
+
+    <p><code>PrivateKey</code> automatically zeroizes its bytes when dropped
+    &mdash; you do not need to clear it manually.</p>
+
+    <p>Full API documentation is available on
+    <a href="https://docs.rs/btc-keygen">docs.rs</a>.</p>
   </section>
 
 </div>

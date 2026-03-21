@@ -1,10 +1,11 @@
 /// Derives a native SegWit (P2WPKH) Bech32 address from a compressed public key.
 ///
-/// Steps:
-/// 1. Hash160: RIPEMD160(SHA256(pubkey)) -> 20 bytes
-/// 2. Bech32 encode with HRP "bc" and witness version 0
+/// Takes the 33-byte compressed public key returned by
+/// [`derive_pubkey`](crate::derive_pubkey) and produces a mainnet Bitcoin
+/// address starting with `bc1q` (42 characters).
 ///
-/// The resulting address starts with "bc1q" and is 42 characters long.
+/// Internally this performs Hash160 (RIPEMD-160 of SHA-256) followed by
+/// Bech32 encoding with witness version 0.
 pub fn derive_address(compressed_pubkey: &[u8; 33]) -> String {
     use bitcoin_hashes::{Hash, hash160};
 

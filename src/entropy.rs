@@ -28,15 +28,13 @@ impl EntropySource for OsEntropy {
     }
 }
 
-/// Test-only entropy source that yields predetermined bytes.
-///
-/// If multiple calls are made, it serves from sequential chunks of the
-/// provided data. If the data is exhausted, it returns an error.
+#[cfg(test)]
 pub struct FixedEntropy {
     data: Vec<u8>,
     cursor: std::cell::Cell<usize>,
 }
 
+#[cfg(test)]
 impl FixedEntropy {
     pub fn new(data: Vec<u8>) -> Self {
         Self {
@@ -46,6 +44,7 @@ impl FixedEntropy {
     }
 }
 
+#[cfg(test)]
 impl EntropySource for FixedEntropy {
     fn fill_bytes(&self, dest: &mut [u8]) -> Result<(), EntropyError> {
         let start = self.cursor.get();
@@ -59,9 +58,10 @@ impl EntropySource for FixedEntropy {
     }
 }
 
-/// Entropy source that always fails. Used to test error handling.
+#[cfg(test)]
 pub struct FailingEntropy;
 
+#[cfg(test)]
 impl EntropySource for FailingEntropy {
     fn fill_bytes(&self, _dest: &mut [u8]) -> Result<(), EntropyError> {
         Err(EntropyError("simulated entropy failure".into()))
