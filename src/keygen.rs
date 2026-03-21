@@ -1,9 +1,14 @@
+use crate::entropy::{EntropyError, EntropySource};
 use secp256k1::SecretKey;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::entropy::{EntropyError, EntropySource};
-
 /// A validated secp256k1 private key that zeroizes its bytes on drop.
+///
+/// Created by [`generate`](crate::generate). The key is guaranteed to be a
+/// valid scalar in the range `[1, n-1]` where `n` is the secp256k1 curve order.
+///
+/// When this value goes out of scope, the underlying bytes are securely
+/// overwritten with zeros to prevent secrets from lingering in memory.
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct PrivateKey {
     bytes: [u8; 32],
@@ -15,9 +20,18 @@ impl PrivateKey {
         &self.bytes
     }
 
-    /// Converts the private key into a `secp256k1::SecretKey`.
+    /// Converts the private key into a [`secp256k1::SecretKey`] for use with
+    /// the `secp256k1` crate directly.
     pub fn to_secret_key(&self) -> SecretKey {
         SecretKey::from_slice(&self.bytes).expect("PrivateKey always holds a validated scalar")
+    }
+
+    /// Creates a `PrivateKey` from raw bytes without entropy generation.
+    ///
+    /// Caller must ensure bytes represent a valid secp256k1 scalar.
+    #[cfg(test)]
+    pub(crate) fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self { bytes }
     }
 }
 
@@ -33,7 +47,9 @@ pub fn is_valid_key(bytes: &[u8; 32]) -> bool {
 /// Retries up to `MAX_RETRIES` times if the random bytes fall outside the
 /// valid secp256k1 scalar range. This is astronomically unlikely but handled
 /// for correctness.
-pub fn generate(entropy: &dyn EntropySource) -> Result<PrivateKey, EntropyError> {
+pub(crate) fn generate_with_entropy(
+    entropy: &dyn EntropySource,
+) -> Result<PrivateKey, EntropyError> {
     for _ in 0..MAX_RETRIES {
         let mut bytes = [0u8; 32];
         entropy.fill_bytes(&mut bytes)?;
@@ -50,9 +66,28 @@ pub fn generate(entropy: &dyn EntropySource) -> Result<PrivateKey, EntropyError>
     ))
 }
 
+/// Generates a new Bitcoin private key using OS-provided cryptographic randomness.
+///
+/// Returns a [`PrivateKey`] containing a validated secp256k1 scalar. The
+/// entropy comes from the operating system's CSPRNG (`getrandom` syscall on
+/// Linux, `getentropy` on macOS, `BCryptGenRandom` on Windows).
+///
+/// # Errors
+///
+/// Returns [`Error`](crate::Error) if the OS random number generator fails.
+///
+/// # Example
+///
+/// ```no_run
+/// let key = btc_keygen::generate().expect("key generation failed");
+/// ```
+pub fn generate() -> Result<PrivateKey, crate::Error> {
+    generate_with_entropy(&crate::entropy::OsEntropy).map_err(crate::Error::from)
+}
+
 /// Maximum retry attempts for key generation. A safety net against infinite
 /// loops — the probability of needing even one retry is ~10^-38.
-const MAX_RETRIES: u32 = 256;
+const MAX_RETRIES: u32 = 32;
 
 #[cfg(test)]
 mod tests {
@@ -153,7 +188,7 @@ mod tests {
         key_bytes[31] = 0x01; // scalar = 1, valid
         let entropy = FixedEntropy::new(key_bytes.to_vec());
 
-        let key = generate(&entropy).expect("generation should succeed");
+        let key = generate_with_entropy(&entropy).expect("generation should succeed");
         assert_eq!(key.as_bytes(), &key_bytes);
     }
 
@@ -164,8 +199,8 @@ mod tests {
         let mut bytes_b = [0u8; 32];
         bytes_b[31] = 0x02;
 
-        let key_a = generate(&FixedEntropy::new(bytes_a.to_vec())).unwrap();
-        let key_b = generate(&FixedEntropy::new(bytes_b.to_vec())).unwrap();
+        let key_a = generate_with_entropy(&FixedEntropy::new(bytes_a.to_vec())).unwrap();
+        let key_b = generate_with_entropy(&FixedEntropy::new(bytes_b.to_vec())).unwrap();
 
         assert_ne!(key_a.as_bytes(), key_b.as_bytes());
     }
@@ -175,8 +210,8 @@ mod tests {
         let mut key_bytes = [0u8; 32];
         key_bytes[31] = 0x05;
 
-        let key1 = generate(&FixedEntropy::new(key_bytes.to_vec())).unwrap();
-        let key2 = generate(&FixedEntropy::new(key_bytes.to_vec())).unwrap();
+        let key1 = generate_with_entropy(&FixedEntropy::new(key_bytes.to_vec())).unwrap();
+        let key2 = generate_with_entropy(&FixedEntropy::new(key_bytes.to_vec())).unwrap();
 
         assert_eq!(key1.as_bytes(), key2.as_bytes());
     }
@@ -191,13 +226,13 @@ mod tests {
         data.extend_from_slice(&valid);
 
         let entropy = FixedEntropy::new(data);
-        let key = generate(&entropy).expect("should succeed after retry");
+        let key = generate_with_entropy(&entropy).expect("should succeed after retry");
         assert_eq!(key.as_bytes(), &valid);
     }
 
     #[test]
     fn test_entropy_failure_propagates() {
-        let result = generate(&FailingEntropy);
+        let result = generate_with_entropy(&FailingEntropy);
         assert!(result.is_err(), "entropy failure must propagate as error");
     }
 
@@ -205,7 +240,7 @@ mod tests {
     fn test_generated_key_converts_to_secret_key() {
         let mut key_bytes = [0u8; 32];
         key_bytes[31] = 0x01;
-        let key = generate(&FixedEntropy::new(key_bytes.to_vec())).unwrap();
+        let key = generate_with_entropy(&FixedEntropy::new(key_bytes.to_vec())).unwrap();
 
         // Must not panic — validates the internal invariant.
         let _sk = key.to_secret_key();
