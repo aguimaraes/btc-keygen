@@ -49,14 +49,15 @@ Module: `keygen`
 | `test_different_entropy_produces_different_keys` | Two `FixedEntropy` sources with different bytes produce distinct keys |
 | `test_same_entropy_produces_same_key` | Same `FixedEntropy` used twice produces same key (deterministic) |
 | `test_invalid_entropy_triggers_retry` | `FixedEntropy` yields curve order `n` (invalid) on first call, then valid bytes on second call; generation succeeds |
-| `test_entropy_failure_propagates` | `FailingEntropy` returns error; `generate()` propagates it |
+| `test_entropy_failure_propagates` | `FailingEntropy` returns error; `generate_with_entropy()` propagates it |
 | `test_generated_key_converts_to_secret_key` | Generated key can be converted to `secp256k1::SecretKey` without panic |
 
 ## 6.3 — WIF encoding
 
 Module: `wif`
 
-Known-answer tests using published Bitcoin test vectors.
+Known-answer tests using published Bitcoin test vectors. Tests construct a
+`PrivateKey` via `PrivateKey::from_bytes()` and pass it to `encode_wif()`.
 
 | Test | Input (hex private key) | Expected WIF |
 |---|---|---|
@@ -70,6 +71,9 @@ Known-answer tests using published Bitcoin test vectors.
 ## 6.4 — Compressed public key derivation
 
 Module: `pubkey`
+
+Tests construct a `PrivateKey` via `PrivateKey::from_bytes()` and pass it to
+`derive_pubkey()`.
 
 | Test | Input (private key hex) | Expected compressed pubkey hex |
 |---|---|---|
@@ -93,6 +97,8 @@ Module: `address`
 
 ## 6.6 — End-to-end deterministic pipeline
 
+Module: `lib.rs` (pipeline_tests)
+
 | Test | Description |
 |---|---|
 | `test_full_pipeline_deterministic` | Fixed entropy (scalar = 1) through full pipeline: key bytes, WIF (`KwDiBf89...noWn`), pubkey (`0279be66...1798`), address (`bc1qw508d6...f3t4`) all match expected |
@@ -101,7 +107,7 @@ Module: `address`
 
 ## 6.7 — Output contract
 
-Module: `output` and integration
+Module: `main.rs` (tests)
 
 | Test | Description |
 |---|---|
@@ -131,10 +137,6 @@ Module: `output` and integration
 |---|---|
 | `test_no_network_deps` | Structural: `cargo tree` contains none of `reqwest`, `hyper`, `tokio`, `async-std`, `surf`, `ureq`, `curl` |
 
-Note: `test_entropy_failure_propagates` is listed in 6.2 (keygen module).
-`test_cli_no_subcommand_shows_help` and `test_cli_unknown_flag_errors` are
-listed in 6.10 (CLI integration).
-
 ## 6.10 — CLI integration tests
 
 These invoke the compiled binary and inspect stdout, stderr, and exit code.
@@ -151,19 +153,27 @@ These invoke the compiled binary and inspect stdout, stderr, and exit code.
 | `test_cli_no_subcommand_shows_help` | Running with no arguments exits non-zero and shows usage |
 | `test_cli_unknown_flag_errors` | `--unknown-flag` produces an error and nonzero exit |
 
+## 6.11 — Doc-tests
+
+| Test | Description |
+|---|---|
+| `lib.rs` doc example | Crate-level usage example compiles |
+| `generate()` doc example | Function-level example compiles |
+
 ## Summary
 
-| Category | Count | Type |
+| Category | Count | Location |
 |---|---|---|
-| Entropy source self-tests | 4 | Unit |
-| Key boundary validation | 7 | Unit |
-| Injectable entropy | 6 | Unit |
-| WIF encoding | 6 | Unit |
-| Public key derivation | 4 | Unit |
-| Bech32 address | 6 | Unit |
-| End-to-end pipeline | 3 | Unit |
-| Output contract | 11 | Unit / Integration |
-| Statelessness | 3 | Integration |
-| Structural safety | 1 | Integration |
-| CLI integration | 9 | Integration |
-| **Total** | **60** | |
+| Entropy source self-tests | 4 | `entropy.rs` |
+| Key boundary validation | 7 | `keygen.rs` |
+| Injectable entropy | 6 | `keygen.rs` |
+| WIF encoding | 6 | `wif.rs` |
+| Public key derivation | 4 | `pubkey.rs` |
+| Bech32 address | 6 | `address.rs` |
+| End-to-end pipeline | 3 | `lib.rs` |
+| Output contract | 11 | `main.rs` |
+| Statelessness | 3 | `tests/integration.rs` |
+| Structural safety | 1 | `tests/integration.rs` |
+| CLI integration | 9 | `tests/integration.rs` |
+| Doc-tests | 2 | `lib.rs`, `keygen.rs` |
+| **Total** | **62** | |
