@@ -55,7 +55,7 @@ let address = btc_keygen::derive_address(&pubkey);
 
 ## Install (CLI)
 
-Download a pre-built binary from the [latest release](https://github.com/aguimaraes/btc-keygen/releases/latest), verify the SHA256 checksum, and run it.
+Download a pre-built binary from the [latest release](https://github.com/aguimaraes/btc-keygen/releases/tag/v0.0.3), verify the SHA256 checksum, and run it.
 
 Or build from source:
 
