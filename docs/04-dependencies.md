@@ -62,12 +62,7 @@ Every dependency is an attack surface. Each crate must be justified by one of:
 
 ## Dev-only dependencies
 
-### `serde_json` (dev-dependency)
-
-- **Purpose:** JSON parsing in tests only
-- **Justification:** Used in integration tests and output contract tests to
-  validate that `--json` output is well-formed JSON with the expected fields.
-  Not compiled into the release binary.
+None.
 
 ## Rejected alternatives
 

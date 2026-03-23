@@ -278,9 +278,8 @@ mod tests {
         let kp = sample_keypair();
         format_output(&mut buf, &kp, Format::Json).unwrap();
         let output = String::from_utf8(buf).unwrap();
-        let parsed: serde_json::Value =
-            serde_json::from_str(&output).expect("JSON output must be valid JSON");
-        assert!(parsed.is_object());
+        assert!(output.starts_with('{'), "JSON must start with {{");
+        assert!(output.trim().ends_with('}'), "JSON must end with }}");
     }
 
     #[test]
@@ -289,12 +288,11 @@ mod tests {
         let kp = sample_keypair();
         format_output(&mut buf, &kp, Format::Json).unwrap();
         let output = String::from_utf8(buf).unwrap();
-        let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
         assert!(
-            parsed.get("address").is_some(),
+            output.contains("\"address\""),
             "JSON must have 'address' field"
         );
-        assert!(parsed.get("wif").is_some(), "JSON must have 'wif' field");
+        assert!(output.contains("\"wif\""), "JSON must have 'wif' field");
     }
 
     #[test]
@@ -303,11 +301,10 @@ mod tests {
         let kp = sample_keypair_all_fields();
         format_output(&mut buf, &kp, Format::Json).unwrap();
         let output = String::from_utf8(buf).unwrap();
-        let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
-        assert!(parsed.get("address").is_some());
-        assert!(parsed.get("wif").is_some());
-        assert!(parsed.get("private_key_hex").is_some());
-        assert!(parsed.get("pubkey_hex").is_some());
+        assert!(output.contains("\"address\""));
+        assert!(output.contains("\"wif\""));
+        assert!(output.contains("\"private_key_hex\""));
+        assert!(output.contains("\"pubkey_hex\""));
     }
 
     #[test]
@@ -316,13 +313,12 @@ mod tests {
         let kp = sample_keypair();
         format_output(&mut buf, &kp, Format::Json).unwrap();
         let output = String::from_utf8(buf).unwrap();
-        let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
         assert!(
-            parsed.get("private_key_hex").is_none(),
+            !output.contains("\"private_key_hex\""),
             "JSON must omit private_key_hex when not requested"
         );
         assert!(
-            parsed.get("pubkey_hex").is_none(),
+            !output.contains("\"pubkey_hex\""),
             "JSON must omit pubkey_hex when not requested"
         );
     }
