@@ -23,7 +23,7 @@ impl PrivateKey {
     /// Converts the private key into a [`secp256k1::SecretKey`] for use with
     /// the `secp256k1` crate directly.
     pub fn to_secret_key(&self) -> SecretKey {
-        SecretKey::from_slice(&self.bytes).expect("PrivateKey always holds a validated scalar")
+        SecretKey::from_byte_array(self.bytes).expect("PrivateKey always holds a validated scalar")
     }
 
     /// Creates a `PrivateKey` from raw bytes without entropy generation.
@@ -38,8 +38,8 @@ impl PrivateKey {
 /// Checks whether 32 bytes represent a valid secp256k1 private key.
 ///
 /// A valid key is a scalar in `[1, n-1]` where `n` is the curve order.
-pub fn is_valid_key(bytes: &[u8; 32]) -> bool {
-    SecretKey::from_slice(bytes).is_ok()
+pub fn is_valid_key(bytes: [u8; 32]) -> bool {
+    SecretKey::from_byte_array(bytes).is_ok()
 }
 
 /// Generates a new private key using the provided entropy source.
@@ -54,7 +54,7 @@ pub(crate) fn generate_with_entropy(
         let mut bytes = [0u8; 32];
         entropy.fill_bytes(&mut bytes)?;
 
-        if is_valid_key(&bytes) {
+        if is_valid_key(bytes) {
             return Ok(PrivateKey { bytes });
         }
         // Invalid scalar — zeroize and retry.
@@ -124,21 +124,21 @@ mod tests {
     #[test]
     fn test_zero_key_rejected() {
         let zero = [0u8; 32];
-        assert!(!is_valid_key(&zero), "zero must not be a valid private key");
+        assert!(!is_valid_key(zero), "zero must not be a valid private key");
     }
 
     #[test]
     fn test_one_key_valid() {
         let mut one = [0u8; 32];
         one[31] = 1;
-        assert!(is_valid_key(&one), "scalar 1 must be a valid private key");
+        assert!(is_valid_key(one), "scalar 1 must be a valid private key");
     }
 
     #[test]
     fn test_curve_order_minus_one_valid() {
         let n_minus_1 = curve_order_minus_one();
         assert!(
-            is_valid_key(&n_minus_1),
+            is_valid_key(n_minus_1),
             "n-1 must be a valid private key (maximum scalar)"
         );
     }
@@ -146,7 +146,7 @@ mod tests {
     #[test]
     fn test_curve_order_rejected() {
         assert!(
-            !is_valid_key(&CURVE_ORDER),
+            !is_valid_key(CURVE_ORDER),
             "the curve order n itself must not be a valid private key"
         );
     }
@@ -155,7 +155,7 @@ mod tests {
     fn test_curve_order_plus_one_rejected() {
         let n_plus_1 = curve_order_plus_one();
         assert!(
-            !is_valid_key(&n_plus_1),
+            !is_valid_key(n_plus_1),
             "n+1 must not be a valid private key"
         );
     }
@@ -164,7 +164,7 @@ mod tests {
     fn test_all_ff_rejected() {
         let all_ff = [0xFF; 32];
         assert!(
-            !is_valid_key(&all_ff),
+            !is_valid_key(all_ff),
             "all 0xFF bytes exceed curve order and must be rejected"
         );
     }
@@ -175,7 +175,7 @@ mod tests {
         let mut key = [0u8; 32];
         key[0] = 0x0A;
         key[31] = 0x0B;
-        assert!(is_valid_key(&key));
+        assert!(is_valid_key(key));
     }
 
     // ---------------------------------------------------------------
