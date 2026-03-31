@@ -1,3 +1,5 @@
+use bitcoin_hashes::sha256;
+
 /// Encodes a private key as a Wallet Import Format (WIF) string.
 ///
 /// WIF is the standard format for importing private keys into Bitcoin wallets.
@@ -14,9 +16,8 @@ pub fn encode_wif(private_key: &crate::keygen::PrivateKey) -> String {
     payload[33] = 0x01;
 
     // Checksum: first 4 bytes of SHA256(SHA256(payload))
-    use bitcoin_hashes::{Hash, sha256};
-    let hash1 = sha256::Hash::hash(&payload);
-    let hash2 = sha256::Hash::hash(hash1.as_ref());
+    let hash1 = sha256::Hash::hash(&payload).to_byte_array();
+    let hash2 = sha256::Hash::hash(&hash1).to_byte_array();
     let checksum = &hash2[..4];
 
     // Final data: payload + checksum = 38 bytes
@@ -173,8 +174,6 @@ mod tests {
 
     #[test]
     fn test_wif_checksum_valid() {
-        use bitcoin_hashes::{Hash, sha256};
-
         let key = key_from_hex("0000000000000000000000000000000000000000000000000000000000000001");
         let wif = encode_wif(&key);
         let decoded = base58_decode(&wif);
@@ -187,8 +186,8 @@ mod tests {
         let checksum = &decoded[34..38];
 
         // Recompute checksum.
-        let hash1 = sha256::Hash::hash(payload);
-        let hash2 = sha256::Hash::hash(hash1.as_ref());
+        let hash1 = sha256::Hash::hash(payload).to_byte_array();
+        let hash2 = sha256::Hash::hash(&hash1).to_byte_array();
         let expected_checksum = &hash2[..4];
 
         assert_eq!(

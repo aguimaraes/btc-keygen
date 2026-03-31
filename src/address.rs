@@ -1,3 +1,5 @@
+use bitcoin_hashes::hash160;
+
 /// Derives a native SegWit (P2WPKH) Bech32 address from a compressed public key.
 ///
 /// Takes the 33-byte compressed public key returned by
@@ -7,8 +9,6 @@
 /// Internally this performs Hash160 (RIPEMD-160 of SHA-256) followed by
 /// Bech32 encoding with witness version 0.
 pub fn derive_address(compressed_pubkey: &[u8; 33]) -> String {
-    use bitcoin_hashes::{Hash, hash160};
-
     // Step 1: Hash160 = RIPEMD160(SHA256(pubkey))
     let hash = hash160::Hash::hash(compressed_pubkey);
     let witness_program = hash.as_ref(); // 20 bytes
