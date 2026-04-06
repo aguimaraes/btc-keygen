@@ -76,10 +76,12 @@ Fix anything that fails. Do not skip these.
 ## 5. Check crate packaging
 
 ```bash
-cargo publish --dry-run
+cargo publish --dry-run --allow-dirty
 ```
 
 This catches issues like missing fields in `Cargo.toml`, files that shouldn't be packaged, or build failures in the packaged crate. Review the file count and size — if it's unexpectedly large, you may need to update the `exclude` list in `Cargo.toml`.
+
+We need --allow-dirty because our changes are not committed yet.
 
 ## 6. Commit the version bump
 
@@ -144,14 +146,14 @@ Once the workflow completes:
 cargo publish
 ```
 
-This uploads the crate to [crates.io](https://crates.io/crates/btc-keygen). You need to be logged in (`cargo login` with an API token from https://crates.io/settings/tokens).
+This uploads the crate to [crates.io](https://crates.io/crates/btc-keygen). You need to be logged in (`cargo login` with an API token from <https://crates.io/settings/tokens>).
 
 **This is irreversible.** A version published to crates.io cannot be overwritten or deleted (only yanked). Double-check everything before running this command.
 
 ### First-time setup
 
 1. Create an account on [crates.io](https://crates.io) (sign in with GitHub).
-2. Generate an API token at https://crates.io/settings/tokens.
+2. Generate an API token at <https://crates.io/settings/tokens>.
 3. Run `cargo login <token>`.
 
 ## 12. Post-release

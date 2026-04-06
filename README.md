@@ -2,7 +2,7 @@
 
 Minimal offline Bitcoin key generator for cold storage.
 
-> **ALPHA v0.0.3** — This software has not been independently audited. Do not use with funds you cannot afford to lose.
+> **ALPHA v0.0.4** — This software has not been independently audited. Do not use with funds you cannot afford to lose.
 
 ## What it does
 
