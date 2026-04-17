@@ -78,7 +78,7 @@ mod tests {
         for i in 0..32 {
             bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).unwrap();
         }
-        PrivateKey::from_bytes(bytes)
+        PrivateKey::from_bytes(bytes).unwrap()
     }
 
     // Known-answer test: private key = 1.

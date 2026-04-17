@@ -1,3 +1,4 @@
+use crate::Error;
 use crate::entropy::{EntropyError, EntropySource};
 use secp256k1::SecretKey;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -26,12 +27,71 @@ impl PrivateKey {
         SecretKey::from_byte_array(self.bytes).expect("PrivateKey always holds a validated scalar")
     }
 
-    /// Creates a `PrivateKey` from raw bytes without entropy generation.
+    /// Creates a `PrivateKey` from 32 raw bytes, validating that they form a
+    /// valid secp256k1 scalar.
     ///
-    /// Caller must ensure bytes represent a valid secp256k1 scalar.
-    #[cfg(test)]
-    pub(crate) fn from_bytes(bytes: [u8; 32]) -> Self {
-        Self { bytes }
+    /// Use this when you have your own source of private key material (for
+    /// example, physical entropy like dice rolls converted to hex) and want
+    /// to skip OS entropy generation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error`](crate::Error) if `bytes` is zero or greater than or
+    /// equal to the secp256k1 curve order `n`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let mut bytes = [0u8; 32];
+    /// bytes[31] = 0x01;
+    /// let key = btc_keygen::PrivateKey::from_bytes(bytes)?;
+    /// # Ok::<(), btc_keygen::Error>(())
+    /// ```
+    pub fn from_bytes(bytes: [u8; 32]) -> Result<PrivateKey, Error> {
+        if !is_valid_key(bytes) {
+            return Err(Error("not a valid secp256k1 scalar".into()));
+        }
+
+        Ok(PrivateKey { bytes })
+    }
+
+    /// Creates a `PrivateKey` from a 64-character hexadecimal string,
+    /// validating that the decoded bytes form a valid secp256k1 scalar.
+    ///
+    /// Convenience wrapper around [`from_bytes`](Self::from_bytes) for callers
+    /// that have the key material as a hex string (for example, from a CLI
+    /// argument or a text file).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error`](crate::Error) if:
+    ///
+    /// - `hex` is not exactly 64 characters long.
+    /// - `hex` contains a character that is not a valid hexadecimal digit.
+    /// - The decoded bytes are zero or greater than or equal to the secp256k1
+    ///   curve order `n`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let hex = "0000000000000000000000000000000000000000000000000000000000000001";
+    /// let key = btc_keygen::PrivateKey::from_hex(hex)?;
+    /// # Ok::<(), btc_keygen::Error>(())
+    /// ```
+    pub fn from_hex(hex: &str) -> Result<PrivateKey, Error> {
+        if hex.len() != 64 {
+            return Err(Error(format!(
+                "expected 64 hex characters, got {}",
+                hex.len()
+            )));
+        }
+
+        let mut bytes = [0u8; 32];
+        for i in 0..32 {
+            bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16)
+                .map_err(|_| Error(format!("invalid hex at position {}", i * 2)))?;
+        }
+        Self::from_bytes(bytes)
     }
 }
 
@@ -244,5 +304,65 @@ mod tests {
 
         // Must not panic — validates the internal invariant.
         let _sk = key.to_secret_key();
+    }
+
+    // ---------------------------------------------------------------
+    // 6.12 — PrivateKey::from_bytes validation
+    // ---------------------------------------------------------------
+
+    #[test]
+    fn test_from_bytes_accepts_valid_scalar() {
+        let mut bytes = [0u8; 32];
+        bytes[31] = 0x01;
+        let key = PrivateKey::from_bytes(bytes).expect("scalar 1 must be accepted");
+        assert_eq!(key.as_bytes(), &bytes);
+    }
+
+    #[test]
+    fn test_from_bytes_rejects_invalid_scalar() {
+        let zero = [0u8; 32];
+        assert!(
+            PrivateKey::from_bytes(zero).is_err(),
+            "invalid scalar must be rejected"
+        );
+    }
+
+    // ---------------------------------------------------------------
+    // 6.13 — PrivateKey::from_hex parsing and validation
+    // ---------------------------------------------------------------
+
+    #[test]
+    fn test_from_hex_accepts_valid_scalar_one() {
+        let hex = "0000000000000000000000000000000000000000000000000000000000000001";
+        let key = PrivateKey::from_hex(hex).expect("scalar 1 must be accepted");
+        let mut expected = [0u8; 32];
+        expected[31] = 0x01;
+        assert_eq!(key.as_bytes(), &expected);
+    }
+
+    #[test]
+    fn test_from_hex_rejects_wrong_length() {
+        assert!(
+            PrivateKey::from_hex("01").is_err(),
+            "hex not exactly 64 chars must be rejected"
+        );
+    }
+
+    #[test]
+    fn test_from_hex_rejects_non_hex_characters() {
+        let hex = "zz00000000000000000000000000000000000000000000000000000000000001";
+        assert!(
+            PrivateKey::from_hex(hex).is_err(),
+            "non-hex characters must be rejected"
+        );
+    }
+
+    #[test]
+    fn test_from_hex_propagates_invalid_scalar() {
+        let hex = "0000000000000000000000000000000000000000000000000000000000000000";
+        assert!(
+            PrivateKey::from_hex(hex).is_err(),
+            "invalid scalar from from_bytes must propagate"
+        );
     }
 }

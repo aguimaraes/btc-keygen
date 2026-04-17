@@ -147,6 +147,35 @@ fn test_cli_unknown_flag_errors() {
     );
 }
 
+#[test]
+fn test_cli_from_hex_produces_known_keypair() {
+    let output = run_btc_keygen(&[
+        "generate",
+        "--from-hex",
+        "0000000000000000000000000000000000000000000000000000000000000001",
+    ]);
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        stdout.contains("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"),
+        "expected known address for scalar 1, got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"),
+        "expected known WIF for scalar 1, got:\n{stdout}"
+    );
+}
+
+#[test]
+fn test_cli_from_hex_invalid_input_exits_non_zero() {
+    let output = run_btc_keygen(&["generate", "--from-hex", "notavalidhex"]);
+    assert!(
+        !output.status.success(),
+        "invalid hex must produce non-zero exit"
+    );
+}
+
 // ---------------------------------------------------------------
 // 6.8 — Statelessness tests
 // ---------------------------------------------------------------

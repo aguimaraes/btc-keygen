@@ -1,6 +1,7 @@
 use std::io::{self, Write};
 use std::process;
 
+use btc_keygen::PrivateKey;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -15,6 +16,10 @@ struct Cli {
 enum Commands {
     /// Generate a new Bitcoin keypair
     Generate {
+        /// Pass your own private key hex
+        #[arg(long)]
+        from_hex: Option<String>,
+
         /// Include raw private key in hexadecimal
         #[arg(long)]
         hex: bool,
@@ -46,13 +51,18 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Generate { hex, pubkey, json } => {
-            run_generate(hex, pubkey, json);
+        Commands::Generate {
+            from_hex,
+            hex,
+            pubkey,
+            json,
+        } => {
+            run_generate(from_hex, hex, pubkey, json);
         }
     }
 }
 
-fn run_generate(include_hex: bool, include_pubkey: bool, json: bool) {
+fn run_generate(from_hex: Option<String>, include_hex: bool, include_pubkey: bool, json: bool) {
     // Print safety warnings to stderr.
     let mut stderr = io::stderr().lock();
     if let Err(e) = print_warnings(&mut stderr) {
@@ -61,12 +71,22 @@ fn run_generate(include_hex: bool, include_pubkey: bool, json: bool) {
     }
     drop(stderr);
 
-    // Generate private key from OS entropy.
-    let private_key = match btc_keygen::generate() {
-        Ok(key) => key,
-        Err(e) => {
-            eprintln!("key generation failed: {}", e);
-            process::exit(1);
+    let private_key = if let Some(hex) = from_hex {
+        match PrivateKey::from_hex(&hex) {
+            Ok(key) => key,
+            Err(e) => {
+                eprintln!("invalid private key: {}", e);
+                process::exit(1);
+            }
+        }
+    } else {
+        // Generate private key from OS entropy.
+        match btc_keygen::generate() {
+            Ok(key) => key,
+            Err(e) => {
+                eprintln!("key generation failed: {}", e);
+                process::exit(1);
+            }
         }
     };
 
