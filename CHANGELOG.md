@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `--from-hex` CLI flag to accept a user-provided 64-character hex private key instead of OS-generated entropy
+- `PrivateKey::from_bytes()` and `PrivateKey::from_hex()` as public library constructors with scalar validation
+
 ## [0.0.4] - 2026-04-06
 
 ### Added
@@ -86,6 +93,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - GitHub Sponsors and Bitcoin donation address
 - Threat model, security assumptions, and dependency documentation
 
+[Unreleased]: https://github.com/aguimaraes/btc-keygen/compare/v0.0.4...HEAD
 [0.0.4]: https://github.com/aguimaraes/btc-keygen/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/aguimaraes/btc-keygen/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/aguimaraes/btc-keygen/compare/v0.0.1...v0.0.2

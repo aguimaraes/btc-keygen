@@ -113,6 +113,23 @@ valid but is wrong, leading to funds locked in an unspendable address.
 **Mitigation:** Test against published test vectors from BIP173 and the Bitcoin
 wiki. Use known-answer tests with deterministic inputs.
 
+### T10 — Weak user-provided private key (`--from-hex`)
+
+**Risk:** When the caller passes `--from-hex`, the tool uses the provided 32
+bytes directly as the private key. If those bytes came from a low-entropy source
+(a short passphrase, a predictable pattern, a biased physical process), the
+resulting key is guessable.
+
+**Mitigation:** Validate that the input is a valid secp256k1 scalar. Document on
+the website and in `--help` that the security of the generated key depends
+entirely on the quality of the user-provided bytes, and that the OS CSPRNG is
+bypassed in this mode.
+
+**Residual risk:** Key quality is the caller's responsibility. The tool cannot
+detect low-entropy input. This mode exists so the operator can supply their own
+entropy source (for example, dice or coin flips converted to hex); misuse is an
+operator concern.
+
 ## Operator responsibilities
 
 The following are outside the tool's control and must be handled by the operator:

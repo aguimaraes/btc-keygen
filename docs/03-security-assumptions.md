@@ -13,6 +13,7 @@ guarantees. If any assumption is violated, the corresponding consequence applies
 | A6 | The operator does not run the tool in an environment that logs stdout | Secrets are not inadvertently persisted by shell history, `script`, or audit systems |
 | A7 | SHA-256 and RIPEMD-160 are collision-resistant and preimage-resistant | Address derivation is unsound |
 | A8 | Base58Check and Bech32 encoding implementations are correct | Keys and addresses are invalid on the Bitcoin network |
+| A9 | When `--from-hex` is used, the caller sourced the 32 bytes from a high-entropy, trusted process | The generated key is as weak as the caller's input; scalar validation does not detect low-entropy bytes |
 
 ## Trust boundaries
 
@@ -51,7 +52,7 @@ guarantees. If any assumption is violated, the corresponding consequence applies
 ## What we do not trust
 
 - Network availability (tool works fully offline)
-- User-provided entropy (not accepted)
+- Quality of user-provided key bytes when `--from-hex` is used (validated as a valid scalar, but not for entropy)
 - Filesystem persistence (nothing written to disk)
 - Other processes on the machine (mitigated by air-gap assumption)
 - Shell environment (warnings issued about logging)

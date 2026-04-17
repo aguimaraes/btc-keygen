@@ -152,6 +152,8 @@ These invoke the compiled binary and inspect stdout, stderr, and exit code.
 | `test_cli_all_flags_json` | `btc-keygen generate --hex --pubkey --json` outputs JSON with all four fields |
 | `test_cli_no_subcommand_shows_help` | Running with no arguments exits non-zero and shows usage |
 | `test_cli_unknown_flag_errors` | `--unknown-flag` produces an error and nonzero exit |
+| `test_cli_from_hex_produces_known_keypair` | `--from-hex` with scalar 1 produces the known address and WIF |
+| `test_cli_from_hex_invalid_input_exits_non_zero` | `--from-hex` with an invalid hex value produces a non-zero exit |
 
 ## 6.11 — Doc-tests
 
@@ -159,6 +161,34 @@ These invoke the compiled binary and inspect stdout, stderr, and exit code.
 |---|---|
 | `lib.rs` doc example | Crate-level usage example compiles |
 | `generate()` doc example | Function-level example compiles |
+| `PrivateKey::from_bytes()` doc example | Runnable example validates scalar 1 is accepted |
+| `PrivateKey::from_hex()` doc example | Runnable example validates scalar 1 hex string is accepted |
+
+## 6.12 — PrivateKey::from_bytes validation
+
+Module: `keygen`
+
+Thin wrapper around `is_valid_key`; verifies the wrapper routes correctly.
+Boundary cases are already covered by 6.1.
+
+| Test | Input | Expected result |
+|---|---|---|
+| `test_from_bytes_accepts_valid_scalar` | `0x00...01` | Returns `Ok(PrivateKey)` with matching bytes |
+| `test_from_bytes_rejects_invalid_scalar` | 32 zero bytes | Returns `Err` |
+
+## 6.13 — PrivateKey::from_hex parsing and validation
+
+Module: `keygen`
+
+Hex parsing layer on top of `from_bytes`. Scalar validation is not re-tested
+here because it is covered by 6.1 and 6.12.
+
+| Test | Input | Expected result |
+|---|---|---|
+| `test_from_hex_accepts_valid_scalar_one` | 64 hex chars encoding scalar 1 | Returns `Ok`; bytes match |
+| `test_from_hex_rejects_wrong_length` | `"01"` | Returns `Err` |
+| `test_from_hex_rejects_non_hex_characters` | 64 chars with leading `zz` | Returns `Err` |
+| `test_from_hex_propagates_invalid_scalar` | 64 zero hex chars | Returns `Err` (delegated from `from_bytes`) |
 
 ## Summary
 
@@ -174,6 +204,8 @@ These invoke the compiled binary and inspect stdout, stderr, and exit code.
 | Output contract | 11 | `main.rs` |
 | Statelessness | 3 | `tests/integration.rs` |
 | Structural safety | 1 | `tests/integration.rs` |
-| CLI integration | 9 | `tests/integration.rs` |
-| Doc-tests | 2 | `lib.rs`, `keygen.rs` |
-| **Total** | **62** | |
+| CLI integration | 11 | `tests/integration.rs` |
+| Doc-tests | 4 | `lib.rs`, `keygen.rs` |
+| `PrivateKey::from_bytes` validation | 2 | `keygen.rs` |
+| `PrivateKey::from_hex` parsing | 4 | `keygen.rs` |
+| **Total** | **72** | |

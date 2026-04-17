@@ -47,6 +47,8 @@ let address = btc_keygen::derive_address(&pubkey);
 | Function | Input | Output |
 |---|---|---|
 | `generate()` | — | `Result<PrivateKey, Error>` |
+| `PrivateKey::from_bytes(bytes)` | `[u8; 32]` | `Result<PrivateKey, Error>` (validated scalar) |
+| `PrivateKey::from_hex(hex)` | `&str` (64 hex chars) | `Result<PrivateKey, Error>` (validated scalar) |
 | `encode_wif(&key)` | `&PrivateKey` | `String` (starts with `K` or `L`) |
 | `derive_pubkey(&key)` | `&PrivateKey` | `[u8; 33]` (compressed public key) |
 | `derive_address(&pubkey)` | `&[u8; 33]` | `String` (Bech32 address, `bc1q...`) |
@@ -76,6 +78,9 @@ btc-keygen generate --hex        # also show raw private key hex
 btc-keygen generate --pubkey     # also show compressed public key
 btc-keygen generate --json       # JSON output
 btc-keygen generate --hex --pubkey --json   # everything
+
+# Provide your own 64-character hex private key instead of OS entropy:
+btc-keygen generate --from-hex <HEX>
 ```
 
 ## Security
