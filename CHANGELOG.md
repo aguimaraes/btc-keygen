@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `--from-hex` CLI flag to accept a user-provided 64-character hex private key instead of OS-generated entropy
 - `PrivateKey::from_bytes()` and `PrivateKey::from_hex()` as public library constructors with scalar validation
 
+### Changed
+
+- Release builds now pass `--locked` to Cargo, pinning shipped binaries to the exact transitive dependency versions recorded in `Cargo.lock`
+
 ## [0.0.4] - 2026-04-06
 
 ### Added
