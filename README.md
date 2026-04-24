@@ -2,7 +2,7 @@
 
 Minimal offline Bitcoin key generator for cold storage.
 
-> **ALPHA v0.0.4** — This software has not been independently audited. Do not use with funds you cannot afford to lose.
+> **ALPHA** — This software has not been independently audited. Do not use with funds you cannot afford to lose.
 
 ## What it does
 
@@ -26,7 +26,7 @@ Every run creates a new keypair. The tool does not store secrets. If you lose th
 - JSON output for scripting
 - Memory zeroization of secret material on exit
 - Zero network code — fully offline
-- 62 automated tests including known-answer vectors
+- Automated tests including known-answer vectors from the Bitcoin wiki
 - Cross-platform: Linux, macOS, Windows, BSDs
 
 ## Library usage
@@ -57,7 +57,7 @@ let address = btc_keygen::derive_address(&pubkey);
 
 ## Install (CLI)
 
-Download a pre-built binary from the [latest release](https://github.com/aguimaraes/btc-keygen/releases/tag/v0.0.3), verify the SHA256 checksum, and run it.
+Download a pre-built binary from the [latest release](https://github.com/aguimaraes/btc-keygen/releases/latest), verify the SHA256 checksum, and run it.
 
 Or build from source:
 

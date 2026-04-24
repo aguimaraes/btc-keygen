@@ -16,16 +16,15 @@ While the project is `0.x.y`, minor bumps may include breaking changes. Once you
 
 ## 2. Update version in source files
 
-The version appears in exactly four files:
+The version appears in exactly one file:
 
 | File | Location | Format |
 |---|---|---|
 | `Cargo.toml` | line 3 | `version = "X.Y.Z"` |
-| `README.md` | line 5 | `**ALPHA vX.Y.Z**` |
-| `site/index.html` | header warning | `ALPHA vX.Y.Z` |
-| `site/index.html` | footer warning | `ALPHA vX.Y.Z` |
 
-After editing, run `cargo check` to make sure `Cargo.toml` parses correctly.
+After editing, run `cargo check` to make sure `Cargo.toml` parses correctly and `Cargo.lock` is refreshed.
+
+The README and website carry an `ALPHA` warning without a version number, and the website's download links use GitHub's `/releases/latest` redirects. Both update automatically when a new release is published. Do not hardcode versions there.
 
 ## 3. Update the changelog
 
@@ -86,7 +85,7 @@ We need --allow-dirty because our changes are not committed yet.
 ## 6. Commit the version bump
 
 ```bash
-git add Cargo.toml Cargo.lock README.md site/index.html CHANGELOG.md
+git add Cargo.toml Cargo.lock CHANGELOG.md
 git commit -m "Bump version to X.Y.Z"
 ```
 
@@ -167,7 +166,7 @@ This uploads the crate to [crates.io](https://crates.io/crates/btc-keygen). You 
 ```
 cargo fmt --check && cargo clippy -- -D warnings && cargo test
 cargo publish --dry-run
-git add Cargo.toml Cargo.lock README.md site/index.html CHANGELOG.md
+git add Cargo.toml Cargo.lock CHANGELOG.md
 git commit -m "Bump version to X.Y.Z"
 git tag -s vX.Y.Z -m "vX.Y.Z"
 git push origin main
