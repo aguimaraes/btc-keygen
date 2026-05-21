@@ -55,7 +55,9 @@ let address = btc_keygen::derive_address(&pubkey);
 
 ## Install (CLI)
 
-Download a pre-built binary from the [latest release](https://github.com/aguimaraes/btc-keygen/releases/latest), verify the SHA256 checksum, and run it.
+Download a pre-built binary from the
+[latest release](https://github.com/aguimaraes/btc-keygen/releases/latest),
+verify the SHA256 checksum, and run it.
 
 Or build from source:
 
@@ -83,7 +85,10 @@ btc-keygen generate --from-hex <HEX>
 
 ## Security
 
-This tool is designed for air-gapped cold storage key generation. See the [website](https://aguimaraes.github.io/btc-keygen) for a plain-language explanation, or the [docs/](docs/) directory for the full threat model, security assumptions, and dependency analysis.
+This tool is designed for air-gapped cold storage key generation. See the
+[website](https://aguimaraes.github.io/btc-keygen) for a plain-language
+explanation, or the [docs/](docs/) directory for the full threat model,
+security assumptions, and dependency analysis.
 
 ## License
 
