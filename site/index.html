@@ -314,10 +314,6 @@ footer code{font-size:.85em}
     A minimal Rust CLI that generates a Bitcoin private key on an air-gapped
     machine. No wallet. No network. No trust required.
   </p>
-  <p class="banner">
-    <strong>Alpha.</strong> This software has not been independently audited.
-    Do not use it with funds you cannot afford to lose.
-  </p>
 </header>
 
 <nav aria-label="page sections">
@@ -349,7 +345,7 @@ footer code{font-size:.85em}
 
   <p>But generating keys on a computer connected to the internet is also
   risky. Malware, keyloggers, clipboard hijackers, and compromised software
-  can steal your private key the moment it's created — before you even know
+  can steal your private key the moment it's created, before you even know
   it exists.</p>
 
   <p>The safest approach is simple: <strong>generate your key on a computer
@@ -495,15 +491,6 @@ footer code{font-size:.85em}
     <dd>Every component is tested against published Bitcoin test vectors,
     ensuring the keys and addresses are valid on the real Bitcoin network.</dd>
   </dl>
-
-  <p class="warning">
-    <strong>Alpha software.</strong> This tool has not been independently
-    audited by a third-party security firm. The test suite is comprehensive,
-    the code is minimal, and the cryptographic primitives come from
-    well-reviewed libraries — but until an independent audit is performed,
-    treat this as experimental. Do not use it with amounts you cannot afford
-    to lose.
-  </p>
 
   <p>For the full technical threat model, security assumptions, and
   dependency analysis, see the
