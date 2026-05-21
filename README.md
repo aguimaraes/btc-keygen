@@ -2,8 +2,6 @@
 
 Minimal offline Bitcoin key generator for cold storage.
 
-> **ALPHA** — This software has not been independently audited. Do not use with funds you cannot afford to lose.
-
 ## What it does
 
 Generates a Bitcoin private key and its corresponding native SegWit (Bech32) address in a single execution. Prints both to stdout, keeps no state, and exits. Designed to run on an air-gapped machine for cold storage key ceremonies.
@@ -44,14 +42,14 @@ let pubkey = btc_keygen::derive_pubkey(&key);
 let address = btc_keygen::derive_address(&pubkey);
 ```
 
-| Function | Input | Output |
-|---|---|---|
-| `generate()` | — | `Result<PrivateKey, Error>` |
-| `PrivateKey::from_bytes(bytes)` | `[u8; 32]` | `Result<PrivateKey, Error>` (validated scalar) |
-| `PrivateKey::from_hex(hex)` | `&str` (64 hex chars) | `Result<PrivateKey, Error>` (validated scalar) |
-| `encode_wif(&key)` | `&PrivateKey` | `String` (starts with `K` or `L`) |
-| `derive_pubkey(&key)` | `&PrivateKey` | `[u8; 33]` (compressed public key) |
-| `derive_address(&pubkey)` | `&[u8; 33]` | `String` (Bech32 address, `bc1q...`) |
+| Function                        | Input                 | Output                                         |
+| ------------------------------- | --------------------- | ---------------------------------------------- |
+| `generate()`                    | —                     | `Result<PrivateKey, Error>`                    |
+| `PrivateKey::from_bytes(bytes)` | `[u8; 32]`            | `Result<PrivateKey, Error>` (validated scalar) |
+| `PrivateKey::from_hex(hex)`     | `&str` (64 hex chars) | `Result<PrivateKey, Error>` (validated scalar) |
+| `encode_wif(&key)`              | `&PrivateKey`         | `String` (starts with `K` or `L`)              |
+| `derive_pubkey(&key)`           | `&PrivateKey`         | `[u8; 33]` (compressed public key)             |
+| `derive_address(&pubkey)`       | `&[u8; 33]`           | `String` (Bech32 address, `bc1q...`)           |
 
 `PrivateKey` zeroizes its bytes when dropped. Full API docs at [docs.rs/btc-keygen](https://docs.rs/btc-keygen).
 
