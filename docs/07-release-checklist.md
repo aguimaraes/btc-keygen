@@ -6,11 +6,11 @@ Step-by-step routine for publishing a new version of btc-keygen.
 
 Follow [Semantic Versioning](https://semver.org/):
 
-| Change type | Bump | Example |
-|---|---|---|
-| Breaking API/CLI change | MAJOR | 0.1.0 → 1.0.0 |
+| Change type              | Bump  | Example       |
+| ------------------------ | ----- | ------------- |
+| Breaking API/CLI change  | MAJOR | 0.1.0 → 1.0.0 |
 | New feature, no breakage | MINOR | 0.0.2 → 0.1.0 |
-| Bug fix, docs, CI | PATCH | 0.0.2 → 0.0.3 |
+| Bug fix, docs, CI        | PATCH | 0.0.2 → 0.0.3 |
 
 While the project is `0.x.y`, minor bumps may include breaking changes. Once you tag `1.0.0`, the contract is strict.
 
@@ -18,9 +18,9 @@ While the project is `0.x.y`, minor bumps may include breaking changes. Once you
 
 The version appears in exactly one file:
 
-| File | Location | Format |
-|---|---|---|
-| `Cargo.toml` | line 3 | `version = "X.Y.Z"` |
+| File         | Location | Format              |
+| ------------ | -------- | ------------------- |
+| `Cargo.toml` | line 3   | `version = "X.Y.Z"` |
 
 After editing, run `cargo check` to make sure `Cargo.toml` parses correctly and `Cargo.lock` is refreshed.
 
@@ -36,15 +36,19 @@ Edit `CHANGELOG.md` following the [Keep a Changelog](https://keepachangelog.com/
 ## [X.Y.Z] - YYYY-MM-DD
 
 ### Added
+
 - New features.
 
 ### Changed
+
 - Changes to existing functionality.
 
 ### Fixed
+
 - Bug fixes.
 
 ### Removed
+
 - Removed features.
 ```
 
@@ -163,7 +167,7 @@ This uploads the crate to [crates.io](https://crates.io/crates/btc-keygen). You 
 
 ## Quick reference
 
-```
+```bash
 cargo fmt --check && cargo clippy -- -D warnings && cargo test
 cargo publish --dry-run
 git add Cargo.toml Cargo.lock CHANGELOG.md
