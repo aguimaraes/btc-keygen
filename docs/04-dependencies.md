@@ -15,9 +15,7 @@ Every dependency is an attack surface. Each crate must be justified by one of:
 - **Purpose:** Elliptic curve key generation and public key derivation
 - **Justification:** Rust binding to Bitcoin Core's `libsecp256k1`, the most
   reviewed secp256k1 implementation in the ecosystem. We must not implement EC
-  math ourselves. Enable the `rand-std` feature for CSPRNG-based key generation.
-- **Transitive deps:** `getrandom`, `rand_core`, `cc` (build-time, compiles
-  vendored C source)
+  math ourselves.
 - **Note:** The crate vendors the C `libsecp256k1` source and compiles it. This
   is intentional — it uses the audited C implementation rather than a Rust
   reimplementation.
@@ -66,13 +64,13 @@ None.
 
 ## Rejected alternatives
 
-| Crate | Reason for rejection |
-|---|---|
-| `bitcoin` (full) | Too large. Includes transaction parsing, script handling, networking types. We need only hashing and encoding primitives. |
-| `ring` / `openssl` | Unnecessary. `secp256k1` + `bitcoin_hashes` covers all needed crypto without pulling in TLS or general-purpose crypto. |
-| `rand` | Not needed directly. The `secp256k1` crate with `rand-std` uses `getrandom` internally. For testing with injectable entropy, we use `secp256k1::SecretKey::from_byte_array()`. |
-| `serde` / `serde_json` | The JSON structure is trivially small (3-4 fields). Hand-writing JSON avoids a large transitive dependency tree. |
-| `base58` / `bs58` | Base58 encoding is roughly 30 lines. Implementing it inline avoids a dependency for trivial logic. Tested against known vectors. |
+| Crate                  | Reason for rejection                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `bitcoin` (full)       | Too large. Includes transaction parsing, script handling, networking types. We need only hashing and encoding primitives.                                                      |
+| `ring` / `openssl`     | Unnecessary. `secp256k1` + `bitcoin_hashes` covers all needed crypto without pulling in TLS or general-purpose crypto.                                                         |
+| `rand`                 | Not needed directly. The `secp256k1` crate with `rand-std` uses `getrandom` internally. For testing with injectable entropy, we use `secp256k1::SecretKey::from_byte_array()`. |
+| `serde` / `serde_json` | The JSON structure is trivially small (3-4 fields). Hand-writing JSON avoids a large transitive dependency tree.                                                               |
+| `base58` / `bs58`      | Base58 encoding is roughly 30 lines. Implementing it inline avoids a dependency for trivial logic. Tested against known vectors.                                               |
 
 ## Dependency audit process
 

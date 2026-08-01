@@ -12,7 +12,7 @@ categories = ["cryptography", "command-line-utilities"]
 exclude = ["docs/", "site/", ".github/", ".editorconfig"]
 
 [dependencies]
-secp256k1 = { version = "0.31.1", features = ["rand"] }
+secp256k1 = "0.31.1"
 bitcoin_hashes = "1.1"
 bech32 = "0.12"
 getrandom = "0.4"
