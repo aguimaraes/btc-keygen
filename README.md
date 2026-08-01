@@ -92,9 +92,7 @@ security assumptions, and dependency analysis.
 
 ## License
 
-Licensed under either of
+Licensed under the [GNU General Public License v3.0 or later](LICENSE).
 
-- [MIT license](LICENSE-MIT)
-- [Apache License, Version 2.0](LICENSE-APACHE)
-
-at your option.
+Versions 0.0.1–0.0.5 were released under `MIT OR Apache-2.0`; those releases
+remain available under those terms. Version 0.1.0 onward is GPL-3.0-or-later.

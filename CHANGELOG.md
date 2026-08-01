@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.0] - 2026-07-18
+
+### Changed
+
+- **License changed from `MIT OR Apache-2.0` to `GPL-3.0-or-later`.** Releases
+  0.0.1–0.0.5 remain available under their original permissive terms; 0.1.0
+  onward is copyleft. Downstream code that links or bundles this crate must now
+  comply with the GPL.
+
 ## [0.0.5] - 2026-04-24
 
 ### Added

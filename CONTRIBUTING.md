@@ -87,3 +87,8 @@ description short and lowercase with hyphens.
 
 This is a cryptographic tool. If you find a security issue, please report it
 privately to the maintainer rather than opening a public issue.
+
+## License
+
+By contributing, you agree that your contributions are licensed under the
+GNU General Public License v3.0 or later, the same terms as the project.

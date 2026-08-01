@@ -1,10 +1,10 @@
 [package]
 name = "btc-keygen"
-version = "0.0.5"
+version = "0.1.0"
 edition = "2024"
 rust-version = "1.94"
 description = "Minimal offline Bitcoin key generator for cold storage"
-license = "MIT OR Apache-2.0"
+license = "GPL-3.0-or-later"
 repository = "https://github.com/aguimaraes/btc-keygen"
 homepage = "https://aguimaraes.github.io/btc-keygen"
 keywords = ["bitcoin", "keygen", "cold-storage", "offline"]
