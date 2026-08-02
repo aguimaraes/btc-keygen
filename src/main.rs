@@ -1,8 +1,9 @@
 use std::io::{self, Write};
-use std::process;
+use std::process::ExitCode;
 
 use btc_keygen::PrivateKey;
 use clap::{Parser, Subcommand};
+use zeroize::Zeroizing;
 
 #[derive(Parser)]
 #[command(name = "btc-keygen")]
@@ -36,8 +37,8 @@ enum Commands {
 
 struct KeypairOutput {
     address: String,
-    wif: String,
-    private_key_hex: Option<String>,
+    wif: Zeroizing<String>,
+    private_key_hex: Option<Zeroizing<String>>,
     pubkey_hex: Option<String>,
 }
 
@@ -47,7 +48,7 @@ enum Format {
     Json,
 }
 
-fn main() {
+fn main() -> ExitCode {
     let cli = Cli::parse();
 
     match cli.command {
@@ -56,18 +57,20 @@ fn main() {
             hex,
             pubkey,
             json,
-        } => {
-            run_generate(from_hex, hex, pubkey, json);
-        }
+        } => run_generate(from_hex, hex, pubkey, json),
     }
 }
 
-fn run_generate(from_hex: Option<String>, include_hex: bool, include_pubkey: bool, json: bool) {
-    // Print safety warnings to stderr.
+fn run_generate(
+    from_hex: Option<String>,
+    include_hex: bool,
+    include_pubkey: bool,
+    json: bool,
+) -> ExitCode {
     let mut stderr = io::stderr().lock();
     if let Err(e) = print_warnings(&mut stderr) {
         eprintln!("failed to write warnings: {}", e);
-        process::exit(1);
+        return ExitCode::FAILURE;
     }
     drop(stderr);
 
@@ -76,7 +79,7 @@ fn run_generate(from_hex: Option<String>, include_hex: bool, include_pubkey: boo
             Ok(key) => key,
             Err(e) => {
                 eprintln!("invalid private key: {}", e);
-                process::exit(1);
+                return ExitCode::FAILURE;
             }
         }
     } else {
@@ -84,26 +87,25 @@ fn run_generate(from_hex: Option<String>, include_hex: bool, include_pubkey: boo
             Ok(key) => key,
             Err(e) => {
                 eprintln!("key generation failed: {}", e);
-                process::exit(1);
+                return ExitCode::FAILURE;
             }
         }
     };
 
-    // Derive WIF.
-    let wif_str = btc_keygen::encode_wif(&private_key);
+    let wif_str = Zeroizing::new(btc_keygen::encode_wif(&private_key));
 
     let compressed_pubkey = btc_keygen::derive_pubkey(&private_key);
 
     let address = btc_keygen::derive_address(&compressed_pubkey);
 
     let private_key_hex = if include_hex {
-        Some(
+        Some(Zeroizing::new(
             private_key
                 .as_bytes()
                 .iter()
                 .map(|b| format!("{:02x}", b))
                 .collect(),
-        )
+        ))
     } else {
         None
     };
@@ -130,10 +132,10 @@ fn run_generate(from_hex: Option<String>, include_hex: bool, include_pubkey: boo
 
     if let Err(e) = print_output(&keypair, format) {
         eprintln!("failed to write output: {}", e);
-        process::exit(1);
+        return ExitCode::FAILURE;
     }
 
-    // private_key is dropped here — ZeroizeOnDrop clears the bytes.
+    ExitCode::SUCCESS
 }
 
 fn print_output(keypair: &KeypairOutput, format: Format) -> io::Result<()> {
@@ -183,11 +185,11 @@ fn format_output(
 
 fn format_plain(writer: &mut dyn Write, keypair: &KeypairOutput) -> io::Result<()> {
     writeln!(writer, "address: {}", keypair.address)?;
-    writeln!(writer, "wif: {}", keypair.wif)?;
-    if let Some(ref hex) = keypair.private_key_hex {
+    writeln!(writer, "wif: {}", keypair.wif.as_str())?;
+    if let Some(hex) = keypair.private_key_hex.as_deref() {
         writeln!(writer, "private_key_hex: {}", hex)?;
     }
-    if let Some(ref pk) = keypair.pubkey_hex {
+    if let Some(pk) = keypair.pubkey_hex.as_deref() {
         writeln!(writer, "pubkey_hex: {}", pk)?;
     }
     Ok(())
@@ -196,11 +198,11 @@ fn format_plain(writer: &mut dyn Write, keypair: &KeypairOutput) -> io::Result<(
 fn format_json(writer: &mut dyn Write, keypair: &KeypairOutput) -> io::Result<()> {
     write!(writer, "{{")?;
     write!(writer, "\"address\":\"{}\"", keypair.address)?;
-    write!(writer, ",\"wif\":\"{}\"", keypair.wif)?;
-    if let Some(ref hex) = keypair.private_key_hex {
+    write!(writer, ",\"wif\":\"{}\"", keypair.wif.as_str())?;
+    if let Some(hex) = keypair.private_key_hex.as_deref() {
         write!(writer, ",\"private_key_hex\":\"{}\"", hex)?;
     }
-    if let Some(ref pk) = keypair.pubkey_hex {
+    if let Some(pk) = keypair.pubkey_hex.as_deref() {
         write!(writer, ",\"pubkey_hex\":\"{}\"", pk)?;
     }
     writeln!(writer, "}}")?;
@@ -214,7 +216,7 @@ mod tests {
     fn sample_keypair() -> KeypairOutput {
         KeypairOutput {
             address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4".into(),
-            wif: "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn".into(),
+            wif: Zeroizing::new("KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn".into()),
             private_key_hex: None,
             pubkey_hex: None,
         }
@@ -223,10 +225,10 @@ mod tests {
     fn sample_keypair_all_fields() -> KeypairOutput {
         KeypairOutput {
             address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4".into(),
-            wif: "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn".into(),
-            private_key_hex: Some(
+            wif: Zeroizing::new("KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn".into()),
+            private_key_hex: Some(Zeroizing::new(
                 "0000000000000000000000000000000000000000000000000000000000000001".into(),
-            ),
+            )),
             pubkey_hex: Some(
                 "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798".into(),
             ),

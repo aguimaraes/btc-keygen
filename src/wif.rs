@@ -1,4 +1,5 @@
 use bitcoin_hashes::sha256;
+use zeroize::Zeroize;
 
 /// Encodes a private key as a Wallet Import Format (WIF) string.
 ///
@@ -25,7 +26,10 @@ pub fn encode_wif(private_key: &crate::keygen::PrivateKey) -> String {
     data[..34].copy_from_slice(&payload);
     data[34..38].copy_from_slice(checksum);
 
-    base58_encode(&data)
+    let wif = base58_encode(&data);
+    payload.zeroize();
+    data.zeroize();
+    wif
 }
 
 const BASE58_ALPHABET: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
