@@ -55,10 +55,12 @@ description short and lowercase with hyphens.
 1. Create a branch from `main`
 2. Make your changes
 3. Run the full check suite before pushing:
+
    ```bash
    cargo fmt --check
    cargo clippy -- -D warnings
    cargo test
+   markdownlint-cli2 '**/*.md' '#target'
    ```
 4. Commit with a clear, concise message
 5. Open a pull request against `main`
