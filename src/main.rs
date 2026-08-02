@@ -80,7 +80,6 @@ fn run_generate(from_hex: Option<String>, include_hex: bool, include_pubkey: boo
             }
         }
     } else {
-        // Generate private key from OS entropy.
         match btc_keygen::generate() {
             Ok(key) => key,
             Err(e) => {
@@ -93,13 +92,10 @@ fn run_generate(from_hex: Option<String>, include_hex: bool, include_pubkey: boo
     // Derive WIF.
     let wif_str = btc_keygen::encode_wif(&private_key);
 
-    // Derive compressed public key.
     let compressed_pubkey = btc_keygen::derive_pubkey(&private_key);
 
-    // Derive address.
     let address = btc_keygen::derive_address(&compressed_pubkey);
 
-    // Build output.
     let private_key_hex = if include_hex {
         Some(
             private_key

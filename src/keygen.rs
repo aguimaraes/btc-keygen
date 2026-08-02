@@ -164,7 +164,6 @@ mod tests {
     /// n - 1: the maximum valid private key.
     fn curve_order_minus_one() -> [u8; 32] {
         let mut bytes = CURVE_ORDER;
-        // Subtract 1 from the last byte.
         bytes[31] -= 1;
         bytes
     }
@@ -172,7 +171,6 @@ mod tests {
     /// n + 1: one above the curve order.
     fn curve_order_plus_one() -> [u8; 32] {
         let mut bytes = CURVE_ORDER;
-        // Add 1 to the last byte.
         bytes[31] += 1;
         bytes
     }

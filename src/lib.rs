@@ -6,15 +6,6 @@
 //!
 //! # Library usage
 //!
-//! The public API is four functions and one type:
-//!
-//! | Function | Input | Output |
-//! |---|---|---|
-//! | [`generate`] | — | `Result<`[`PrivateKey`]`, `[`Error`]`>` |
-//! | [`encode_wif`] | `&PrivateKey` | `String` (starts with `K` or `L`, 52 chars) |
-//! | [`derive_pubkey`] | `&PrivateKey` | `[u8; 33]` (compressed public key) |
-//! | [`derive_address`] | `&[u8; 33]` | `String` (Bech32 address, starts with `bc1q`) |
-//!
 //! ```no_run
 //! // 1. Generate a private key from OS randomness
 //! let key = btc_keygen::generate()?;
@@ -30,14 +21,16 @@
 //! # Ok::<(), btc_keygen::Error>(())
 //! ```
 //!
-//! [`PrivateKey`] zeroizes its bytes when dropped — you do not need to
-//! clear it manually.
+//! To use an existing key instead of OS randomness, see
+//! [`PrivateKey::from_bytes`] and [`PrivateKey::from_hex`].
 //!
 //! # Security
 //!
 //! - Entropy comes from the OS CSPRNG via [`getrandom`](https://docs.rs/getrandom).
 //! - Private key bytes are zeroized in memory when [`PrivateKey`] is dropped.
-//! - No networking code — the crate cannot leak secrets over the network.
+//!   The `String` returned by [`encode_wif`] contains the key too; protecting
+//!   it is the caller's responsibility.
+//! - No networking code, so the crate cannot leak secrets over the network.
 //! - Elliptic curve operations use Bitcoin Core's
 //!   [`libsecp256k1`](https://docs.rs/secp256k1).
 

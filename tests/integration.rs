@@ -199,7 +199,6 @@ fn test_no_file_artifacts() {
     let dir = std::env::temp_dir().join("btc_keygen_artifact_test");
     let _ = std::fs::create_dir_all(&dir);
 
-    // List files before.
     let before: Vec<_> = std::fs::read_dir(&dir)
         .unwrap()
         .filter_map(|e| e.ok())
@@ -213,7 +212,6 @@ fn test_no_file_artifacts() {
         .unwrap();
     assert!(output.status.success());
 
-    // List files after.
     let after: Vec<_> = std::fs::read_dir(&dir)
         .unwrap()
         .filter_map(|e| e.ok())
@@ -230,7 +228,6 @@ fn test_no_file_artifacts() {
 
 #[test]
 fn test_no_env_mutation() {
-    // Capture a snapshot of env vars before running the binary.
     let env_before: std::collections::HashMap<String, String> = std::env::vars().collect();
 
     let output = run_btc_keygen(&["generate"]);
@@ -254,7 +251,6 @@ fn test_no_env_mutation() {
 
 #[test]
 fn test_no_network_deps() {
-    // Verify the dependency tree contains no networking crates.
     let output = Command::new("cargo")
         .args(["tree", "--prefix", "none"])
         .output()

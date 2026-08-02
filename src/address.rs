@@ -9,11 +9,9 @@ use bitcoin_hashes::hash160;
 /// Internally this performs Hash160 (RIPEMD-160 of SHA-256) followed by
 /// Bech32 encoding with witness version 0.
 pub fn derive_address(compressed_pubkey: &[u8; 33]) -> String {
-    // Step 1: Hash160 = RIPEMD160(SHA256(pubkey))
     let hash = hash160::Hash::hash(compressed_pubkey);
     let witness_program = hash.as_ref(); // 20 bytes
 
-    // Step 2: Bech32 encode with HRP "bc", witness version 0
     let hrp = bech32::Hrp::parse("bc").expect("valid HRP");
     bech32::segwit::encode_v0(hrp, witness_program).expect("valid witness program")
 }
@@ -102,7 +100,6 @@ mod tests {
         // Bech32 valid characters (after the separator '1').
         let bech32_chars = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
-        // Split at the separator.
         let data_part = address
             .split('1')
             .nth(1)
