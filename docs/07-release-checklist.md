@@ -66,15 +66,8 @@ Edit `CHANGELOG.md` following the [Keep a Changelog](https://keepachangelog.com/
 
 ## 4. Run local checks
 
-Run the full CI suite locally before pushing:
-
-```bash
-cargo fmt --check
-cargo clippy -- -D warnings
-cargo test
-```
-
-Fix anything that fails. Do not skip these.
+Run the full check suite from [CONTRIBUTING.md](../CONTRIBUTING.md)
+("Making changes", step 3). Fix anything that fails. Do not skip these.
 
 ## 5. Check crate packaging
 
@@ -82,7 +75,7 @@ Fix anything that fails. Do not skip these.
 cargo publish --dry-run --allow-dirty
 ```
 
-This catches issues like missing fields in `Cargo.toml`, files that shouldn't be packaged, or build failures in the packaged crate. Review the file count and size — if it's unexpectedly large, you may need to update the `exclude` list in `Cargo.toml`.
+This catches issues like missing fields in `Cargo.toml`, files that shouldn't be packaged, or build failures in the packaged crate. Review the file count and size; if it's unexpectedly large, you may need to update the `exclude` list in `Cargo.toml`.
 
 We need --allow-dirty because our changes are not committed yet.
 
@@ -117,14 +110,15 @@ Push the commit first, then the tag. Pushing the tag triggers the GitHub Actions
 
 The release workflow runs three jobs in sequence:
 
-1. **test** — runs `cargo test` on Linux, macOS, and Windows.
-2. **build** — compiles binaries for five targets:
+1. **test**: runs `cargo test` on Linux, macOS, and Windows.
+2. **build**: compiles binaries for six targets:
    - `x86_64-unknown-linux-musl`
    - `aarch64-unknown-linux-musl`
    - `x86_64-apple-darwin`
    - `aarch64-apple-darwin`
    - `x86_64-pc-windows-gnu`
-3. **release** — generates `SHA256SUMS.txt`, creates a GitHub Release with all binaries attached.
+   - `x86_64-unknown-freebsd`
+3. **release**: generates `SHA256SUMS.txt`, creates a GitHub Release with all binaries attached.
 
 Watch the workflow at `https://github.com/aguimaraes/btc-keygen/actions`. If any job fails, fix the issue, delete the tag, re-tag, and push again:
 
@@ -139,7 +133,7 @@ git push origin :refs/tags/vX.Y.Z
 Once the workflow completes:
 
 - Check the release page at `https://github.com/aguimaraes/btc-keygen/releases/tag/vX.Y.Z`.
-- Confirm all five binaries and `SHA256SUMS.txt` are attached.
+- Confirm all six binaries and `SHA256SUMS.txt` are attached.
 - Download at least one binary and verify the checksum matches.
 - Run the binary to confirm it works: `./btc-keygen generate`.
 
@@ -168,7 +162,7 @@ This uploads the crate to [crates.io](https://crates.io/crates/btc-keygen). You 
 ## Quick reference
 
 ```bash
-cargo fmt --check && cargo clippy -- -D warnings && cargo test
+# run the full check suite (see CONTRIBUTING.md)
 cargo publish --dry-run
 git add Cargo.toml Cargo.lock CHANGELOG.md
 git commit -m "Bump version to X.Y.Z"

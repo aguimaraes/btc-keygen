@@ -17,7 +17,7 @@ Every dependency is an attack surface. Each crate must be justified by one of:
   reviewed secp256k1 implementation in the ecosystem. We must not implement EC
   math ourselves.
 - **Note:** The crate vendors the C `libsecp256k1` source and compiles it. This
-  is intentional — it uses the audited C implementation rather than a Rust
+  is intentional: it uses the audited C implementation rather than a Rust
   reimplementation.
 
 ### `bitcoin_hashes`
@@ -46,15 +46,14 @@ Every dependency is an attack surface. Each crate must be justified by one of:
 - **Purpose:** Direct access to OS-provided CSPRNG
 - **Justification:** Used by the `OsEntropy` implementation to fill private key
   bytes from the OS entropy source (`getrandom(2)` on Linux, `getentropy` on
-  macOS/BSDs, `BCryptGenRandom` on Windows). Already a transitive dependency of
-  `secp256k1`, but listed as a direct dependency so `entropy.rs` can call it
-  explicitly rather than routing through `secp256k1`'s key generation.
+  macOS/BSDs, `BCryptGenRandom` on Windows). The sole entropy source used by
+  the tool; `entropy.rs` calls it directly.
 
 ### `clap`
 
 - **Purpose:** CLI argument parsing
 - **Justification:** Provides the `generate` subcommand and optional flags
-  (`--hex`, `--pubkey`, `--json`). While hand-rolling argument parsing is
+  (`--from-hex`, `--hex`, `--pubkey`, `--json`). While hand-rolling argument parsing is
   possible, `clap` prevents bugs in flag handling and provides standard help
   output. Use the `derive` feature for minimal boilerplate.
 
@@ -68,7 +67,7 @@ None.
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `bitcoin` (full)       | Too large. Includes transaction parsing, script handling, networking types. We need only hashing and encoding primitives.                                                      |
 | `ring` / `openssl`     | Unnecessary. `secp256k1` + `bitcoin_hashes` covers all needed crypto without pulling in TLS or general-purpose crypto.                                                         |
-| `rand`                 | Not needed directly. The `secp256k1` crate with `rand-std` uses `getrandom` internally. For testing with injectable entropy, we use `secp256k1::SecretKey::from_byte_array()`. |
+| `rand`                 | Not needed. Key bytes come straight from `getrandom` and are validated with `secp256k1::SecretKey::from_byte_array()`. The `secp256k1` `rand` feature is disabled.             |
 | `serde` / `serde_json` | The JSON structure is trivially small (3-4 fields). Hand-writing JSON avoids a large transitive dependency tree.                                                               |
 | `base58` / `bs58`      | Base58 encoding is roughly 30 lines. Implementing it inline avoids a dependency for trivial logic. Tested against known vectors.                                               |
 
@@ -78,6 +77,7 @@ Before any release:
 
 1. Run `cargo audit` to check for known vulnerabilities
 2. Run `cargo tree` to review the full transitive dependency graph
-3. Pin exact versions in `Cargo.toml`
+3. Confirm `Cargo.lock` is committed and up to date; CI and release builds run
+   with `--locked`
 4. Verify no crate in the tree uses `std::net`, `reqwest`, `hyper`, or any
    networking primitives

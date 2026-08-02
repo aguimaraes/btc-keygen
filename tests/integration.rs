@@ -10,7 +10,7 @@ fn run_btc_keygen(args: &[&str]) -> std::process::Output {
 }
 
 // ---------------------------------------------------------------
-// 6.10 — CLI integration tests
+// 6.10: CLI integration tests
 // ---------------------------------------------------------------
 
 #[test]
@@ -177,7 +177,7 @@ fn test_cli_from_hex_invalid_input_exits_non_zero() {
 }
 
 // ---------------------------------------------------------------
-// 6.8 — Statelessness tests
+// 6.8: Statelessness tests
 // ---------------------------------------------------------------
 
 #[test]
@@ -238,7 +238,7 @@ fn test_no_env_mutation() {
 
     // Verify no env vars were added or changed in *this* process.
     // The child process runs in its own address space, so it cannot mutate
-    // our env. This test confirms the tool's design — it communicates only
+    // our env. This test confirms the tool's design: it communicates only
     // via stdout/stderr, not environment variables.
     let env_after: std::collections::HashMap<String, String> = std::env::vars().collect();
 
@@ -249,7 +249,7 @@ fn test_no_env_mutation() {
 }
 
 // ---------------------------------------------------------------
-// 6.9 — Structural safety checks
+// 6.9: Structural safety checks
 // ---------------------------------------------------------------
 
 #[test]

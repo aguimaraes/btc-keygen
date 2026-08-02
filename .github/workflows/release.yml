@@ -137,7 +137,7 @@ jobs:
             --notes "$(cat <<EOF
           ## btc-keygen ${{ github.ref_name }}
 
-          > **ALPHA SOFTWARE** — This has not been independently audited.
+          > **ALPHA SOFTWARE**: This has not been independently audited.
           > Do not use with funds you cannot afford to lose.
 
           ### Checksums

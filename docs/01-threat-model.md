@@ -3,14 +3,14 @@
 ## Assets under protection
 
 | Asset | Location | Lifetime |
-|---|---|---|
+| --- | --- | --- |
 | Private key bytes (32 bytes) | Process memory only | Single execution |
 | WIF-encoded private key | Process memory, then stdout | Single execution |
 | Public key | Process memory, then stdout | Single execution; not secret but integrity-critical |
 
 ## Threats
 
-### T1 — Weak or predictable entropy
+### T1: Weak or predictable entropy
 
 **Risk:** If the CSPRNG is broken, biased, or seeded from a low-entropy source,
 generated private keys are guessable.
@@ -23,7 +23,7 @@ predictable values. Never implement a custom PRNG.
 air-gapped VM with no hardware RNG, entropy may be low. This is documented as an
 operator responsibility.
 
-### T2 — Private key outside valid secp256k1 range
+### T2: Private key outside valid secp256k1 range
 
 **Risk:** A 32-byte random value may be 0 or >= curve order `n`
 (`0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141`). Such a
@@ -32,10 +32,10 @@ key is invalid and could produce undefined behavior in downstream EC operations.
 **Mitigation:** Validate the key is in `[1, n-1]` before use. Reject and
 regenerate if out of range.
 
-**Residual risk:** Negligible — probability of a random 256-bit value falling
+**Residual risk:** Negligible: probability of a random 256-bit value falling
 outside the valid range is approximately 3.73 * 10^-39.
 
-### T3 — Secret material persisted to disk
+### T3: Secret material persisted to disk
 
 **Risk:** Private key written to a file, log, temp file, config, core dump, or
 swap.
@@ -47,7 +47,7 @@ encrypted swap or no swap on the air-gapped machine.
 **Residual risk:** We cannot prevent the OS from paging process memory to swap.
 This is an operator-level concern documented in usage guidance.
 
-### T4 — Secret material leaked via side channels
+### T4: Secret material leaked via side channels
 
 **Risk:** Timing attacks, cache attacks, or speculative execution attacks during
 EC operations.
@@ -57,23 +57,24 @@ which is designed with constant-time operations. Do not implement EC math
 ourselves.
 
 **Residual risk:** We inherit the side-channel properties of the underlying
-library. This is acceptable — `libsecp256k1` is the most reviewed implementation
+library. This is acceptable: `libsecp256k1` is the most reviewed implementation
 in the Bitcoin ecosystem.
 
-### T5 — Supply chain compromise of dependencies
+### T5: Supply chain compromise of dependencies
 
 **Risk:** A malicious crate version exfiltrates key material or weakens entropy.
 
-**Mitigation:** Minimize dependency count. Pin exact versions. Audit dependency
-tree. Each dependency must be justified. Use `cargo audit`. The tool has no
-network capability, which limits exfiltration vectors even if a dependency is
-compromised.
+**Mitigation:** Minimize dependency count. Commit `Cargo.lock` and build with
+`--locked` so every build uses the audited, pinned versions. Audit the
+dependency tree. Each dependency must be justified. Use `cargo audit`. The tool
+has no network capability, which limits exfiltration vectors even if a
+dependency is compromised.
 
 **Residual risk:** A compromised dependency could weaken key generation in a way
 that is not immediately detectable (e.g., biased output). Mitigation is small
 dependency surface plus code review.
 
-### T6 — User loses secret output
+### T6: User loses secret output
 
 **Risk:** The user runs the tool, captures only the address, sends funds, and
 then cannot spend them because the private key was never saved.
@@ -85,7 +86,7 @@ recovered.
 **Residual risk:** User ignores warnings. This is a UX problem, not a code
 problem. We mitigate as far as possible through clear messaging.
 
-### T7 — User confuses keypairs across runs
+### T7: User confuses keypairs across runs
 
 **Risk:** User runs the tool twice, mixes up which WIF goes with which address.
 
@@ -93,7 +94,7 @@ problem. We mitigate as far as possible through clear messaging.
 Each run outputs exactly one keypair. Warnings state each run generates a new,
 independent keypair.
 
-### T8 — Process memory inspection by co-located attacker
+### T8: Process memory inspection by co-located attacker
 
 **Risk:** Another process on the same machine reads `/proc/<pid>/mem` or attaches
 a debugger.
@@ -103,9 +104,9 @@ Zeroize secrets on drop to minimize the window. Document that the machine should
 be trusted and single-user.
 
 **Residual risk:** A root-level attacker on the same machine can read process
-memory. Out of scope — the air-gapped machine must be trusted.
+memory. Out of scope: the air-gapped machine must be trusted.
 
-### T9 — Incorrect encoding (WIF, Bech32)
+### T9: Incorrect encoding (WIF, Bech32)
 
 **Risk:** A bug in WIF or Bech32 encoding produces an address or key that looks
 valid but is wrong, leading to funds locked in an unspendable address.
@@ -113,7 +114,7 @@ valid but is wrong, leading to funds locked in an unspendable address.
 **Mitigation:** Test against published test vectors from BIP173 and the Bitcoin
 wiki. Use known-answer tests with deterministic inputs.
 
-### T10 — Weak user-provided private key (`--from-hex`)
+### T10: Weak user-provided private key (`--from-hex`)
 
 **Risk:** When the caller passes `--from-hex`, the tool uses the provided 32
 bytes directly as the private key. If those bytes came from a low-entropy source

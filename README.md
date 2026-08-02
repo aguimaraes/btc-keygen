@@ -6,7 +6,7 @@ Minimal offline Bitcoin key generator for cold storage.
 
 Generates a Bitcoin private key and its corresponding native SegWit (Bech32) address in a single execution. Prints both to stdout, keeps no state, and exits. Designed to run on an air-gapped machine for cold storage key ceremonies.
 
-```
+```console
 $ btc-keygen generate
 address: bc1q...
 wif: K...
@@ -22,8 +22,8 @@ Every run creates a new keypair. The tool does not store secrets. If you lose th
 - WIF private key export
 - Optional hex and public key output
 - JSON output for scripting
-- Memory zeroization of secret material on exit
-- Zero network code — fully offline
+- Secret buffers are zeroized in memory when dropped
+- Zero network code, fully offline
 - Automated tests including known-answer vectors from the Bitcoin wiki
 - Cross-platform: Linux, macOS, Windows, BSDs
 
@@ -31,7 +31,7 @@ Every run creates a new keypair. The tool does not store secrets. If you lose th
 
 Add to your project:
 
-```
+```bash
 cargo add btc-keygen
 ```
 
@@ -44,7 +44,7 @@ let address = btc_keygen::derive_address(&pubkey);
 
 | Function                        | Input                 | Output                                         |
 | ------------------------------- | --------------------- | ---------------------------------------------- |
-| `generate()`                    | —                     | `Result<PrivateKey, Error>`                    |
+| `generate()`                    | (none)                | `Result<PrivateKey, Error>`                    |
 | `PrivateKey::from_bytes(bytes)` | `[u8; 32]`            | `Result<PrivateKey, Error>` (validated scalar) |
 | `PrivateKey::from_hex(hex)`     | `&str` (64 hex chars) | `Result<PrivateKey, Error>` (validated scalar) |
 | `encode_wif(&key)`              | `&PrivateKey`         | `String` (starts with `K` or `L`)              |
@@ -61,7 +61,7 @@ verify the SHA256 checksum, and run it.
 
 Or build from source:
 
-```
+```bash
 git clone https://github.com/aguimaraes/btc-keygen.git
 cd btc-keygen
 cargo build --release
@@ -72,7 +72,7 @@ Requires [Rust](https://www.rust-lang.org/tools/install) and a C compiler.
 
 ## Usage
 
-```
+```bash
 btc-keygen generate              # address + WIF
 btc-keygen generate --hex        # also show raw private key hex
 btc-keygen generate --pubkey     # also show compressed public key

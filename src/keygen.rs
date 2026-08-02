@@ -117,7 +117,7 @@ pub(crate) fn generate_with_entropy(
         if is_valid_key(bytes) {
             return Ok(PrivateKey { bytes });
         }
-        // Invalid scalar — zeroize and retry.
+        // Invalid scalar: zeroize and retry.
         bytes.zeroize();
     }
 
@@ -146,7 +146,7 @@ pub fn generate() -> Result<PrivateKey, crate::Error> {
 }
 
 /// Maximum retry attempts for key generation. A safety net against infinite
-/// loops — the probability of needing even one retry is ~10^-38.
+/// loops: the probability of needing even one retry is ~10^-38.
 const MAX_RETRIES: u32 = 32;
 
 #[cfg(test)]
@@ -178,7 +178,7 @@ mod tests {
     }
 
     // ---------------------------------------------------------------
-    // 6.1 — Private key boundary validation
+    // 6.1: Private key boundary validation
     // ---------------------------------------------------------------
 
     #[test]
@@ -239,7 +239,7 @@ mod tests {
     }
 
     // ---------------------------------------------------------------
-    // 6.2 — Deterministic key generation with injectable entropy
+    // 6.2: Deterministic key generation with injectable entropy
     // ---------------------------------------------------------------
 
     #[test]
@@ -302,12 +302,12 @@ mod tests {
         key_bytes[31] = 0x01;
         let key = generate_with_entropy(&FixedEntropy::new(key_bytes.to_vec())).unwrap();
 
-        // Must not panic — validates the internal invariant.
+        // Must not panic: validates the internal invariant.
         let _sk = key.to_secret_key();
     }
 
     // ---------------------------------------------------------------
-    // 6.12 — PrivateKey::from_bytes validation
+    // 6.12: PrivateKey::from_bytes validation
     // ---------------------------------------------------------------
 
     #[test]
@@ -328,7 +328,7 @@ mod tests {
     }
 
     // ---------------------------------------------------------------
-    // 6.13 — PrivateKey::from_hex parsing and validation
+    // 6.13: PrivateKey::from_hex parsing and validation
     // ---------------------------------------------------------------
 
     #[test]

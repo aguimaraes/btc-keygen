@@ -41,13 +41,13 @@ compiler (for libsecp256k1).
 
 Use the format `feature/<short-description>`:
 
-```
+```text
 feature/refactor-public-api
 feature/add-testnet-support
 feature/fix-wif-checksum
 ```
 
-Use `feature/` for all branches — features, fixes, refactors. Keep the
+Use `feature/` for all branches: features, fixes, refactors. Keep the
 description short and lowercase with hyphens.
 
 ## Making changes
@@ -62,6 +62,7 @@ description short and lowercase with hyphens.
    cargo test
    markdownlint-cli2 '**/*.md' '#target'
    ```
+
 4. Commit with a clear, concise message
 5. Open a pull request against `main`
 
@@ -69,7 +70,7 @@ description short and lowercase with hyphens.
 
 - Format with `cargo fmt` (edition 2024 rules via `rustfmt.toml`)
 - No clippy warnings (`cargo clippy -- -D warnings`)
-- Keep the public API minimal — internal modules are `pub(crate)`
+- Keep the public API minimal: internal modules are `pub(crate)`
 - No new dependencies without justification (see `docs/04-dependencies.md`)
 
 ## Tests
@@ -77,13 +78,13 @@ description short and lowercase with hyphens.
 - Every new function needs tests
 - Use known-answer vectors from Bitcoin wiki where applicable
 - Use `FixedEntropy` / `PrivateKey::from_bytes()` for deterministic tests
-- Run `cargo test` — all 62 tests must pass
+- Run `cargo test`; all tests must pass
 
 ## Commits
 
 - Use clear, imperative commit messages ("Add X" not "Added X")
 - Sign your commits (`git commit -s`)
-- Keep commits focused — one logical change per commit
+- Keep commits focused: one logical change per commit
 
 ## Security
 

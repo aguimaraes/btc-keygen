@@ -4,7 +4,7 @@ These assumptions must hold true for the tool to provide its security
 guarantees. If any assumption is violated, the corresponding consequence applies.
 
 | # | Assumption | Consequence if violated |
-|---|---|---|
+| --- | --- | --- |
 | A1 | The OS CSPRNG (`getrandom` / `/dev/urandom`) provides cryptographically secure random bytes | Generated keys are predictable |
 | A2 | The machine is air-gapped and trusted (no network, no malicious processes) | Side channels and memory inspection become viable attack vectors |
 | A3 | `libsecp256k1` (via the `secp256k1` crate) correctly implements EC operations and is constant-time | Public key derivation may be incorrect or vulnerable to timing attacks |
@@ -17,7 +17,7 @@ guarantees. If any assumption is violated, the corresponding consequence applies
 
 ## Trust boundaries
 
-```
+```text
 +---------------------------------------------------+
 |  Trusted: this tool's process                     |
 |  - Private key bytes exist only here              |

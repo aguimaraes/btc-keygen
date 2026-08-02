@@ -31,7 +31,7 @@ pub fn encode_wif(private_key: &crate::keygen::PrivateKey) -> String {
 const BASE58_ALPHABET: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 fn base58_encode(data: &[u8]) -> String {
-    // Count leading zeros — each becomes a '1' in Base58.
+    // Count leading zeros: each becomes a '1' in Base58.
     let leading_zeros = data.iter().take_while(|&&b| b == 0).count();
 
     // Convert bytes to a big integer (big-endian), then repeatedly divide by 58.

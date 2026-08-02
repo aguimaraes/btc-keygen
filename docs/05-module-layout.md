@@ -2,7 +2,7 @@
 
 ## Directory structure
 
-```
+```text
 btc-keygen/
 ├── Cargo.toml
 ├── docs/
@@ -31,7 +31,7 @@ The library exposes four functions and two types at the crate root via
 `pub use` re-exports. All internal modules are `pub(crate)`.
 
 | Item | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `generate()` | Function | Generate a private key from OS randomness |
 | `encode_wif(&key)` | Function | Encode a private key as WIF |
 | `derive_pubkey(&key)` | Function | Derive compressed public key |
@@ -57,9 +57,10 @@ fn fill_bytes(&self, dest: &mut [u8]) -> Result<(), EntropyError>;
 ```
 
 Provides three implementations:
-- `OsEntropy` — production implementation, delegates to `getrandom::getrandom()`
-- `FixedEntropy` — test-only (`#[cfg(test)]`), returns deterministic bytes
-- `FailingEntropy` — test-only (`#[cfg(test)]`), always returns an error
+
+- `OsEntropy`: production implementation, delegates to `getrandom::fill()`
+- `FixedEntropy`: test-only (`#[cfg(test)]`), returns deterministic bytes
+- `FailingEntropy`: test-only (`#[cfg(test)]`), always returns an error
 
 **Invariant:** `OsEntropy` is the only production entropy source.
 
@@ -70,8 +71,8 @@ falls back to weaker entropy.
 
 Contains the `PrivateKey` struct and two generation functions:
 
-- `generate()` (public) — hardcodes `OsEntropy`, returns `Result<PrivateKey, Error>`
-- `generate_with_entropy()` (`pub(crate)`) — accepts any `EntropySource` for testing
+- `generate()` (public): hardcodes `OsEntropy`, returns `Result<PrivateKey, Error>`
+- `generate_with_entropy()` (`pub(crate)`): accepts any `EntropySource` for testing
 
 Fills 32 bytes, validates they represent a scalar in `[1, n-1]` where `n` is
 the secp256k1 curve order. Wraps the result in `PrivateKey` which implements
@@ -86,6 +87,7 @@ is approximately 10^-38).
 ### `wif.rs`
 
 Pure function that takes a `&PrivateKey` and produces a WIF string:
+
 1. Prepend `0x80` (mainnet)
 2. Append `0x01` (compressed key flag)
 3. Compute 4-byte checksum (first 4 bytes of double SHA-256)
@@ -107,7 +109,8 @@ as 33-byte compressed form.
 ### `address.rs`
 
 Takes 33 compressed public key bytes and produces a Bech32 address:
-1. Compute Hash160: `RIPEMD160(SHA256(pubkey))` — yields 20 bytes
+
+1. Compute Hash160: `RIPEMD160(SHA256(pubkey))`, which yields 20 bytes
 2. Encode as Bech32 with human-readable part `bc` and witness version 0
 
 **Invariant:** Output starts with `bc1q` and is a valid Bech32 string.
@@ -116,26 +119,33 @@ Takes 33 compressed public key bytes and produces a Bech32 address:
 
 Contains all CLI and output formatting logic:
 
-- CLI parsing via `clap` (`generate` subcommand with `--hex`, `--pubkey`, `--json`)
+- CLI parsing via `clap` (`generate` subcommand with `--from-hex`, `--hex`, `--pubkey`, `--json`)
 - `KeypairOutput` struct and `Format` enum (private to the binary)
 - Plain text and JSON output formatting
 - Safety warnings printed to stderr
 
 Orchestrates the full pipeline:
+
 1. Parse CLI arguments
 2. Print safety warnings to stderr
-3. Generate keypair via `btc_keygen::generate()`
+3. Generate a key via `btc_keygen::generate()`, or validate the caller's key
+   when `--from-hex` is given
 4. Derive WIF, public key, and address via the public API
 5. Format and print output
 6. Drop all secret material (zeroized automatically)
 7. Exit
 
-**Invariant:** No secret material persists after the output function returns.
+**Invariant:** Every secret buffer the program owns (key bytes, WIF, optional
+key hex) is zeroized when dropped, and failures return `ExitCode` instead of
+calling `process::exit`, so destructors always run. Copies outside the
+program's control, such as the OS stdout pipeline, the terminal, and the
+command line when `--from-hex` is used, are the operator's responsibility
+(threat model T3, assumption A6).
 stdout contains only machine-readable data. All warnings go to stderr.
 
 ## Data flow
 
-```
+```text
 OsEntropy
     |
     v
@@ -155,7 +165,7 @@ stderr  <--  safety warnings
 
 ## Module dependency graph
 
-```
+```text
 main.rs  (uses public API: generate, encode_wif, derive_pubkey, derive_address)
     |
 lib.rs   (re-exports from internal modules)

@@ -7,16 +7,16 @@
 <meta name="theme-color" content="#f7f6f1" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f0f0e" media="(prefers-color-scheme: dark)">
 
-<title>btc-keygen — offline Bitcoin key generator</title>
+<title>btc-keygen: offline Bitcoin key generator</title>
 <meta name="description" content="A minimal Rust CLI for generating Bitcoin private keys offline on an air-gapped machine. No wallet, no network, no trust required.">
 <link rel="canonical" href="https://aguimaraes.github.io/btc-keygen/">
 
 <meta property="og:type" content="website">
-<meta property="og:title" content="btc-keygen — offline Bitcoin key generator">
+<meta property="og:title" content="btc-keygen: offline Bitcoin key generator">
 <meta property="og:description" content="A minimal Rust CLI for generating Bitcoin private keys offline on an air-gapped machine.">
 <meta property="og:url" content="https://aguimaraes.github.io/btc-keygen/">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="btc-keygen — offline Bitcoin key generator">
+<meta name="twitter:title" content="btc-keygen: offline Bitcoin key generator">
 <meta name="twitter:description" content="A minimal Rust CLI for generating Bitcoin private keys offline on an air-gapped machine.">
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23b85000'/%3E%3Ctext x='8' y='12' font-family='monospace' font-size='11' font-weight='700' text-anchor='middle' fill='%23fff'%3E$%3C/text%3E%3C/svg%3E">
@@ -384,18 +384,18 @@ footer code{font-size:.85em}
   <p>Open a terminal and run <code>btc-keygen generate</code>. The tool
   prints two things:</p>
   <ul>
-    <li><strong>A Bitcoin address</strong> (starts with <code>bc1q</code>) —
+    <li><strong>A Bitcoin address</strong> (starts with <code>bc1q</code>):
     your receiving address. Like a bank account number: give it to people so
     they can send you Bitcoin. Safe to share publicly.</li>
     <li><strong>A private key in WIF format</strong> (starts with
-    <code>K</code> or <code>L</code>) — "Wallet Import Format." Think of it
+    <code>K</code> or <code>L</code>): "Wallet Import Format." Think of it
     as the password to your Bitcoin. Anyone who has this string can spend
     your funds. Keep it absolutely secret.</li>
   </ul>
 
   <h3>4. Write it down</h3>
   <p>Write both the address and the private key on paper, or stamp them into
-  metal. Do not save them to a file. The tool does not save anything — once
+  metal. Do not save them to a file. The tool does not save anything: once
   you close the terminal, the key exists only where you wrote it down.</p>
 
   <h3>5. Store it securely</h3>
@@ -407,7 +407,7 @@ footer code{font-size:.85em}
   <p class="warning">
     <strong>Critical.</strong> The tool generates a fresh key every time you
     run it. If you lose your written copy, there is no way to recover the
-    private key. No one can help you — not the tool, not the developers, not
+    private key. No one can help you: not the tool, not the developers, not
     anyone. Write it down carefully and store it safely.
   </p>
 </section>
@@ -417,23 +417,23 @@ footer code{font-size:.85em}
 
   <h3>Receiving Bitcoin</h3>
   <p>Share your <strong>address</strong> (the <code>bc1q…</code> string) with
-  the sender. You can share it by text, email, or any other channel — the
+  the sender. You can share it by text, email, or any other channel; the
   address is public information and cannot be used to steal your Bitcoin.</p>
 
   <p>Check whether Bitcoin has arrived using any public block explorer (for
   example, search your address on mempool.space or blockchair.com). You do
-  not need your private key to check your balance — only to spend.</p>
+  not need your private key to check your balance, only to spend.</p>
 
   <h3>Spending Bitcoin</h3>
   <p>When you want to spend the Bitcoin stored at your address, you need to
   <strong>import your WIF private key into a wallet application</strong>:</p>
 
   <ol>
-    <li>Install a Bitcoin wallet that supports WIF import — for example
+    <li>Install a Bitcoin wallet that supports WIF import, for example
     Electrum, BlueWallet, or Sparrow Wallet.</li>
     <li>Look for an option called <em>Import</em>, <em>Sweep</em>, or
     <em>Import Private Key</em>. Exact wording varies by wallet.</li>
-    <li>Enter or scan the WIF string — the one starting with <code>K</code>
+    <li>Enter or scan the WIF string, the one starting with <code>K</code>
     or <code>L</code>.</li>
     <li>The wallet will recognize the key, find the associated address, and
     show your balance.</li>
@@ -449,9 +449,9 @@ footer code{font-size:.85em}
 
   <h3>Import vs sweep</h3>
   <ul>
-    <li><strong>Import</strong> — adds the key to the wallet. The wallet now
+    <li><strong>Import</strong>: adds the key to the wallet. The wallet now
     controls that address directly. Funds stay at the same address.</li>
-    <li><strong>Sweep</strong> — moves all funds from the imported key into
+    <li><strong>Sweep</strong>: moves all funds from the imported key into
     a new address controlled by the wallet. The old address ends up empty.
     Generally the safer option because the private key is used only once.</li>
   </ul>
@@ -466,7 +466,7 @@ footer code{font-size:.85em}
   <dl>
     <dt>Randomness from your OS</dt>
     <dd>Your private key is generated using your operating system's
-    cryptographic random number generator — the same source used by SSH,
+    cryptographic random number generator, the same source used by SSH,
     TLS, and disk encryption.</dd>
 
     <dt>Bitcoin Core's own math library</dt>
@@ -502,7 +502,7 @@ footer code{font-size:.85em}
   <h2>Download</h2>
 
   <p>Pre-built binaries are available for every major platform. Each binary
-  is a single file with no dependencies — download it, verify the checksum,
+  is a single file with no dependencies: download it, verify the checksum,
   and run it.</p>
 
   <p class="warning">
@@ -622,7 +622,7 @@ wif: KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn</code></pre>
     send you Bitcoin. Starts with <code>bc1q</code> (native SegWit).</dd>
 
     <dt>wif</dt>
-    <dd>Wallet Import Format — your private key encoded in a standard format
+    <dd>Wallet Import Format: your private key encoded in a standard format
     that any Bitcoin wallet can read. Starts with <code>K</code> or
     <code>L</code>. Keep it secret. See
     <a href="#using">Using your keys</a> for how to use it.</dd>
@@ -646,7 +646,7 @@ wif: KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn</code></pre>
 
   <h3>What if I lose my private key?</h3>
   <p>Any Bitcoin sent to that address is permanently inaccessible. There is
-  no recovery mechanism. This is by design — if anyone could recover your
+  no recovery mechanism. This is by design: if anyone could recover your
   key, so could an attacker.</p>
 
   <h3>Why not use a hardware wallet?</h3>
@@ -689,7 +689,7 @@ wif: KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn</code></pre>
     <tbody>
       <tr>
         <td><code>generate()</code></td>
-        <td>—</td>
+        <td>(none)</td>
         <td><code>Result&lt;PrivateKey, Error&gt;</code></td>
       </tr>
       <tr>
@@ -731,7 +731,7 @@ fn main() -&gt; Result&lt;(), btc_keygen::Error&gt; {
     Ok(())
 }</code></pre>
 
-  <p><code>PrivateKey</code> automatically zeroizes its bytes when dropped —
+  <p><code>PrivateKey</code> automatically zeroizes its bytes when dropped:
   you do not need to clear it manually.</p>
 
   <p>Full API documentation is available on
