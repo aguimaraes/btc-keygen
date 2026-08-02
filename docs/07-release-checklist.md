@@ -108,17 +108,14 @@ Push the commit first, then the tag. Pushing the tag triggers the GitHub Actions
 
 ## 9. Monitor the release workflow
 
-The release workflow runs three jobs in sequence:
+The release workflow runs four stages in sequence:
 
 1. **test**: runs `cargo test` on Linux, macOS, and Windows.
-2. **build**: compiles binaries for six targets:
-   - `x86_64-unknown-linux-musl`
-   - `aarch64-unknown-linux-musl`
-   - `x86_64-apple-darwin`
-   - `aarch64-apple-darwin`
-   - `x86_64-pc-windows-gnu`
-   - `x86_64-unknown-freebsd`
-3. **release**: generates `SHA256SUMS.txt`, creates a GitHub Release with all binaries attached.
+2. **build**: compiles a binary for every target in the release matrix
+   (see `release.yml`).
+3. **smoke**: runs `tests/smoke.sh` against each built binary on its real
+   target OS. A release is published only if every binary passes.
+4. **release**: generates `SHA256SUMS.txt`, creates a GitHub Release with all binaries attached.
 
 Watch the workflow at `https://github.com/aguimaraes/btc-keygen/actions`. If any job fails, fix the issue, delete the tag, re-tag, and push again:
 
@@ -133,7 +130,7 @@ git push origin :refs/tags/vX.Y.Z
 Once the workflow completes:
 
 - Check the release page at `https://github.com/aguimaraes/btc-keygen/releases/tag/vX.Y.Z`.
-- Confirm all six binaries and `SHA256SUMS.txt` are attached.
+- Confirm every target's binary and `SHA256SUMS.txt` are attached.
 - Download at least one binary and verify the checksum matches.
 - Run the binary to confirm it works: `./btc-keygen generate`.
 

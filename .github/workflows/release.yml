@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
@@ -100,10 +100,68 @@ jobs:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
 
+  smoke:
+    name: Smoke (${{ matrix.artifact }})
+    needs: build
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            artifact: btc-keygen-linux-x86_64
+
+          - os: ubuntu-24.04-arm
+            artifact: btc-keygen-linux-aarch64
+
+          # x86_64 binary on an arm64 runner: Rosetta 2 runs it transparently
+          - os: macos-latest
+            artifact: btc-keygen-macos-x86_64
+
+          - os: macos-latest
+            artifact: btc-keygen-macos-aarch64
+
+          - os: windows-latest
+            artifact: btc-keygen-windows-x86_64.exe
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact }}
+
+      - name: Run smoke test against the release binary
+        shell: bash
+        run: |
+          chmod +x '${{ matrix.artifact }}'
+          sh tests/smoke.sh './${{ matrix.artifact }}'
+
+  smoke-freebsd:
+    name: Smoke (btc-keygen-freebsd-x86_64)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: btc-keygen-freebsd-x86_64
+
+      - name: Run smoke test in a FreeBSD VM
+        uses: vmactions/freebsd-vm@77ed28d336d03fe19a3f4f7266c1d2c4714dd79d # v1.5.2
+        with:
+          release: "14.3"
+          usesh: true
+          run: |
+            chmod +x btc-keygen-freebsd-x86_64
+            sh tests/smoke.sh ./btc-keygen-freebsd-x86_64
+
   release:
     name: Create Release
-    needs: build
+    needs: [smoke, smoke-freebsd]
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

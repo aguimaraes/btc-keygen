@@ -190,6 +190,13 @@ here because it is covered by 6.1 and 6.12.
 | `test_from_hex_rejects_non_hex_characters` | 64 chars with leading `zz` | Returns `Err` |
 | `test_from_hex_propagates_invalid_scalar` | 64 zero hex chars | Returns `Err` (delegated from `from_bytes`) |
 
+## 6.14: Release smoke tests
+
+Script: `tests/smoke.sh` (POSIX sh; not part of `cargo test` and not counted
+in the total below). The release workflow runs it against every built binary
+on its real target OS and publishes only if all pass. The exact checks and
+the runner matrix live in the script and in `release.yml`; both are short.
+
 ## Summary
 
 | Category | Count | Location |
