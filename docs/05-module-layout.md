@@ -18,26 +18,36 @@ btc-keygen/
 │   ├── lib.rs           Public API re-exports, crate-level docs, Error type
 │   ├── entropy.rs       Entropy source trait + OS CSPRNG implementation
 │   ├── keygen.rs        Private key generation, validation, zeroizing wrapper
+│   ├── secret.rs        Erase-on-drop containers for secret ASCII output
 │   ├── wif.rs           WIF encoding (Base58Check, mainnet, compressed)
 │   ├── pubkey.rs        Compressed public key derivation
 │   └── address.rs       Native SegWit (P2WPKH) Bech32 address derivation
 └── tests/
-    └── integration.rs   CLI integration tests (invoke binary, check stdout/stderr)
+    ├── integration.rs   CLI integration tests (invoke binary, check stdout/stderr)
+    ├── no_secret_residue.rs  Recording allocator: no freed heap block holds a key
+    └── smoke.sh         Release-artifact smoke test (POSIX sh, takes a binary path)
 ```
 
 ## Public API
 
-The library exposes four functions and two types at the crate root via
+The library exposes four functions and five types at the crate root via
 `pub use` re-exports. All internal modules are `pub(crate)`.
 
 | Item | Type | Description |
 | --- | --- | --- |
 | `generate()` | Function | Generate a private key from OS randomness |
-| `encode_wif(&key)` | Function | Encode a private key as WIF |
+| `encode_wif(&key)` | Function | Encode a private key as WIF, returning `SecretWif` |
 | `derive_pubkey(&key)` | Function | Derive compressed public key |
 | `derive_address(&pubkey)` | Function | Derive Bech32 address |
-| `PrivateKey` | Struct | Validated, zeroize-on-drop key wrapper |
+| `PrivateKey` | Struct | Validated, zeroize-on-drop key wrapper; `to_hex()` returns `SecretKeyHex` |
+| `SecretAscii<N>` | Struct | Fixed-length ASCII secret: erases on drop, redacts `Debug`, no `Display`/`Clone`/`Copy` |
+| `SecretWif` | Alias | `SecretAscii<52>`, a compressed mainnet WIF |
+| `SecretKeyHex` | Alias | `SecretAscii<64>`, a raw key in lowercase hex |
 | `Error` | Struct | Error type for generation failures |
+
+Secret material is never returned as a `String` or `Vec`. Reading a secret is
+spelled `expose_bytes()` or `expose_str()`, and those copies are the caller's to
+manage (assumption A12, threat T12).
 
 ## Module responsibilities
 

@@ -197,6 +197,35 @@ in the total below). The release workflow runs it against every built binary
 on its real target OS and publishes only if all pass. The exact checks and
 the runner matrix live in the script and in `release.yml`; both are short.
 
+## 6.15: Memory residue and allocation budgets
+
+File: `tests/no_secret_residue.rs`. A global allocator wrapper copies each heap
+block's contents at the instant it is freed, and the tests scan that scrap for
+known key material. Every operation is also held to an allocation count and byte
+budget, so a regression that reintroduces a secret-bearing temporary fails here.
+
+Two properties keep the file honest:
+
+- `detector_finds_a_deliberate_leak` is a canary. A leak detector that has
+  silently stopped detecting passes forever, so one case must fail to be clean.
+- `private_key_keeps_its_bytes_off_the_stack` asserts `PrivateKey` stays
+  pointer-sized. An inline `[u8; 32]` is memcpy'd on every move, which no
+  allocator hook can observe, so reverting to one would make the residue tests
+  pass while checking nothing.
+
+**Scope limit:** this harness sees the heap only. Stack copies, including those
+libsecp256k1 makes while deriving a public key and those the optimizer keeps
+alive, are outside what it can measure (threat model T12).
+
+## 6.16: Key import channels
+
+File: `tests/integration.rs`. Covers both `--from-hex` channels: that stdin and
+the argument form produce byte-identical output for the same key, that stdin
+tolerates a missing trailing newline, CRLF, surrounding whitespace and uppercase
+hex, that empty stdin fails rather than falling back to a random key, that
+over-long input is rejected rather than truncated to a different key, and that
+the argument form warns while the stdin form does not.
+
 ## Summary
 
 | Category | Count | Location |
@@ -208,11 +237,20 @@ the runner matrix live in the script and in `release.yml`; both are short.
 | Public key derivation | 4 | `pubkey.rs` |
 | Bech32 address | 6 | `address.rs` |
 | End-to-end pipeline | 3 | `lib.rs` |
-| Output contract | 11 | `main.rs` |
+| `PrivateKey::from_bytes` validation | 2 | `keygen.rs` |
+| `PrivateKey::from_hex` parsing | 4 | `keygen.rs` |
+| `PrivateKey::to_hex` encoding | 2 | `keygen.rs` |
+| Secret type redaction and exposure | 3 | `secret.rs` |
+| Output contract | 12 | `main.rs` |
+| Key input parsing | 6 | `main.rs` |
+| Argument-form deprecation warning | 2 | `main.rs` |
 | Statelessness | 3 | `tests/integration.rs` |
 | Structural safety | 1 | `tests/integration.rs` |
 | CLI integration | 11 | `tests/integration.rs` |
-| Doc-tests | 4 | `lib.rs`, `keygen.rs` |
-| `PrivateKey::from_bytes` validation | 2 | `keygen.rs` |
-| `PrivateKey::from_hex` parsing | 4 | `keygen.rs` |
-| **Total** | **72** | |
+| Key import channels | 8 | `tests/integration.rs` |
+| Memory residue and allocation budgets | 10 | `tests/no_secret_residue.rs` |
+| Doc-tests | 9 | `lib.rs`, `keygen.rs`, `secret.rs` |
+| **Total** | **109** | |
+
+Three of the doc-tests are `compile_fail` cases asserting that a secret type
+cannot be cloned, moved-then-used, or printed with `{}`.

@@ -474,9 +474,13 @@ footer code{font-size:.85em}
     powers Bitcoin Core. The most reviewed implementation in the Bitcoin
     ecosystem.</dd>
 
-    <dt>Memory is wiped after use</dt>
-    <dd>The private key bytes are overwritten in memory the moment the tool
-    finishes, so the key does not linger in RAM.</dd>
+    <dt>Secrets are erased from memory</dt>
+    <dd>Every buffer the tool owns is overwritten with zeros as soon as it is
+    finished with it, so keys are not left sitting in RAM. Three copies are
+    beyond its reach: what your terminal keeps on screen, anything the operating
+    system paged out to swap or wrote to a crash dump, and copies the compiler
+    or the maths library may leave on the stack. Disable swap and core dumps if
+    that matters for your threat model.</dd>
 
     <dt>Zero network code</dt>
     <dd>The tool contains no networking code at all. It cannot connect to
@@ -727,12 +731,16 @@ fn main() -&gt; Result&lt;(), btc_keygen::Error&gt; {
     let address = btc_keygen::derive_address(&amp;pubkey);
 
     println!("Address: {address}");
-    println!("WIF:     {wif}");
+    println!("WIF:     {}", wif.expose_str());
     Ok(())
 }</code></pre>
 
-  <p><code>PrivateKey</code> automatically zeroizes its bytes when dropped:
-  you do not need to clear it manually.</p>
+  <p><code>PrivateKey</code> zeroizes its bytes when dropped, and
+  <code>encode_wif</code> returns a <code>SecretWif</code> rather than a
+  <code>String</code>, so the WIF erases itself too. Neither can be printed with
+  <code>{}</code> by accident; reading one is spelled
+  <code>expose_str()</code>, and whatever you do with the result afterwards is
+  outside what the library can erase.</p>
 
   <p>Full API documentation is available on
   <a href="https://docs.rs/btc-keygen">docs.rs</a>.</p>

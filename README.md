@@ -58,7 +58,13 @@ println!("{}", wif.expose_str()); // exposure is explicit and copies escape here
 Secret material never leaves the library as a `String`. `SecretWif` and
 `SecretKeyHex` zeroize on drop, redact their `Debug` output, and cannot be
 cloned, copied, or printed with `{}`; read them with `expose_bytes()` or
-`expose_str()`. `PrivateKey` zeroizes its bytes when dropped. Full API docs at
+`expose_str()`. `PrivateKey` zeroizes its bytes when dropped.
+
+Erasure covers the buffers the library owns. It does not reach copies you ask
+for via `as_bytes()`, `to_secret_key()`, or an `expose_*` method, memory the OS
+moved to swap or a crash dump, or the stack libsecp256k1 uses while deriving a
+public key. See [what we cannot erase](docs/03-security-assumptions.md) for the
+full list. Full API docs at
 [docs.rs/btc-keygen](https://docs.rs/btc-keygen).
 
 ## Install (CLI)

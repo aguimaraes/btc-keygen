@@ -50,6 +50,11 @@ impl PrivateKey {
 
     /// Converts the private key into a [`secp256k1::SecretKey`] for use with
     /// the `secp256k1` crate directly.
+    ///
+    /// The returned type is outside this crate's erasure guarantees:
+    /// `SecretKey` is `Copy`, does not erase itself when dropped, and its
+    /// `non_secure_erase` is best-effort. Keep the value short-lived, erase it
+    /// by hand, and treat every copy of it as key material.
     pub fn to_secret_key(&self) -> SecretKey {
         SecretKey::from_byte_array(*self.as_bytes())
             .expect("PrivateKey always holds a validated scalar")

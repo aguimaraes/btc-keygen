@@ -39,6 +39,15 @@
 //!   point where copies become the caller's responsibility: writing the bytes
 //!   to a terminal, or copying them into a `String`, puts key material in
 //!   memory this crate cannot erase.
+//! - [`PrivateKey::as_bytes`] and [`PrivateKey::to_secret_key`] exist for
+//!   interoperability and hand out key material the crate no longer controls.
+//!   In particular [`secp256k1::SecretKey`](https://docs.rs/secp256k1) is `Copy`
+//!   and does not erase itself on drop; its `non_secure_erase` is best-effort.
+//! - Erasure is best-effort in general. It covers the buffers this crate owns,
+//!   not memory the OS relocated to swap or a crash dump, not the stack
+//!   libsecp256k1 uses while deriving a public key, and not copies the optimizer
+//!   keeps alive. The [`zeroize`](https://docs.rs/zeroize) crate documents that
+//!   last limit for itself.
 //! - No networking code, so the crate cannot leak secrets over the network.
 //! - Elliptic curve operations use Bitcoin Core's
 //!   [`libsecp256k1`](https://docs.rs/secp256k1).

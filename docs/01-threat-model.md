@@ -4,7 +4,7 @@
 
 | Asset | Location | Lifetime |
 | --- | --- | --- |
-| Private key bytes (32 bytes) | Process memory only | Single execution |
+| Private key bytes (32 bytes) | Process memory; also the argument list when the deprecated `--from-hex <HEX>` form is used | Single execution, except in the shell history the argument form leaves behind |
 | WIF-encoded private key | Process memory, then stdout | Single execution |
 | Public key | Process memory, then stdout | Single execution; not secret but integrity-critical |
 
@@ -44,8 +44,11 @@ swap.
 when dropped. Document that the operator should disable core dumps and consider
 encrypted swap or no swap on the air-gapped machine.
 
-**Residual risk:** We cannot prevent the OS from paging process memory to swap.
-This is an operator-level concern documented in usage guidance.
+**Residual risk:** We cannot prevent the OS from paging process memory to swap,
+writing a crash dump, or hibernating. Nor can we erase the argument list when a
+key arrives via the deprecated `--from-hex <HEX>` form, which the shell also
+records in its history file (see T11). These are operator-level concerns
+documented in usage guidance.
 
 ### T4: Secret material leaked via side channels
 
@@ -131,6 +134,47 @@ detect low-entropy input. This mode exists so the operator can supply their own
 entropy source (for example, dice or coin flips converted to hex); misuse is an
 operator concern.
 
+### T11: Secret material exposed through process arguments
+
+**Risk:** A key passed as `--from-hex <HEX>` appears in the process argument
+list. The shell writes it to its history file, and any process able to run `ps`
+can read it for as long as the command runs.
+
+**Mitigation:** `--from-hex -` reads the key from stdin, which never touches the
+argument list, and prompts when stdin is a terminal. The argument form is
+deprecated, warns on stderr naming both exposures, and is scheduled for removal
+in 0.4.0.
+
+**Residual risk:** Neither exposure can be undone from inside the process. A
+pipeline that contains the key literally, such as `echo $HEX | btc-keygen`, is
+still recorded in full by the shell, so the key should come from a file
+redirection or the interactive prompt.
+
+### T12: Copies of secret material the tool cannot erase
+
+**Risk:** Key material exists in memory this crate does not own and therefore
+cannot overwrite.
+
+**Mitigation:** Every secret the crate owns lives in an erase-on-drop type
+(`PrivateKey`, `SecretWif`, `SecretKeyHex`), boxed so that moving the value
+copies a pointer rather than the secret, and filled in place so that no
+intermediate `String`, `Vec`, or `format!` temporary is allocated on the way out.
+`tests/no_secret_residue.rs` scans every freed heap block for key material and
+holds each operation to an allocation budget.
+
+**Residual risk:** Three categories stay out of reach.
+
+1. Copies the caller asked for. `PrivateKey::as_bytes`, `to_secret_key`, and the
+   `expose_*` methods hand out key material whose lifetime belongs to the
+   caller. `secp256k1::SecretKey` is `Copy` and its `non_secure_erase` is
+   best-effort by upstream's own documentation.
+2. libsecp256k1's own stack during public key derivation.
+3. Copies the optimizer creates, relocates, or keeps alive, which the `zeroize`
+   crate documents as an inherent limit of the approach.
+
+The residue test observes the heap only, so none of these three are measured by
+it. They are reasoned about, and stated here rather than implied away.
+
 ## Operator responsibilities
 
 The following are outside the tool's control and must be handled by the operator:
@@ -142,5 +186,7 @@ The following are outside the tool's control and must be handled by the operator
 - Use encrypted swap or disable swap entirely
 - Do not run the tool in environments that log stdout (e.g., `script`, shell
   audit logging)
+- Supply imported keys on stdin (`--from-hex -`), never as a command-line
+  argument
 - Securely store the output (paper, encrypted volume, etc.)
 - Verify the tool's integrity before use (checksum, signature)
