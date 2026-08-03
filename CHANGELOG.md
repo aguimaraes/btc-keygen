@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.0] - 2026-08-02
+
+### Added
+
+- Release binaries are now smoke-tested on every target OS (Linux x86_64 and
+  aarch64, macOS x86_64 and aarch64, Windows, FreeBSD) before a release is
+  published
+- Markdown linting in CI
+
+### Changed
+
+- All secret buffers owned by the process (the WIF string, the optional
+  private key hex, and the WIF encoding buffers) are now zeroized after use;
+  previously only the raw private key bytes were
+- Failures now exit via `ExitCode` instead of `process::exit`, so destructors
+  and zeroization also run on error paths
+- Dropped the unused secp256k1 `rand` feature, removing six crates from the
+  compiled dependency tree
+- Updated `bitcoin_hashes` to 1.1 and `bech32` to 0.12; raised the minimum
+  supported Rust version to 1.97
+- The release workflow grants write permissions only to the publish job
+- Documentation aligned with actual behavior (zeroization scope, `--from-hex`
+  in the non-goals, dependency pinning via `Cargo.lock`)
+
 ## [0.1.0] - 2026-07-18
 
 ### Changed
@@ -106,6 +130,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - GitHub Sponsors and Bitcoin donation address
 - Threat model, security assumptions, and dependency documentation
 
+[0.2.0]: https://github.com/aguimaraes/btc-keygen/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/aguimaraes/btc-keygen/compare/v0.0.5...v0.1.0
 [0.0.5]: https://github.com/aguimaraes/btc-keygen/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/aguimaraes/btc-keygen/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/aguimaraes/btc-keygen/compare/v0.0.2...v0.0.3
