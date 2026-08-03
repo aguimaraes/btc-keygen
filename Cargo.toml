@@ -12,13 +12,27 @@ categories = ["cryptography", "command-line-utilities"]
 exclude = ["docs/", "site/", ".github/", ".editorconfig"]
 
 [dependencies]
+# Version floors and feature choices are deliberate; see docs/04-dependencies.md
 secp256k1 = "0.31.1"
 bitcoin_hashes = "1.1"
 bech32 = "0.12"
-getrandom = "0.4"
-zeroize = { version = "1", features = ["derive"] }
-clap = { version = "4", features = ["derive"] }
+getrandom = "0.4.2"
+zeroize = { version = "1.5.3", features = ["derive"] }
+clap = { version = "4", default-features = false, features = [
+    "derive",
+    "std",
+    "help",
+    "usage",
+    "error-context",
+] }
 
+# Declares the cfgs the compile-time guards in src/ match on, so they do not trip
+# unexpected_cfgs. See docs/04-dependencies.md for what the guards are for.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(getrandom_backend, values("custom", "efi_rng", "rdrand", "rndr", "linux_getrandom", "linux_raw", "windows_legacy", "unsupported", "extern_impl"))',
+    'cfg(secp256k1_fuzz)',
+] }
 
 [profile.release]
 strip = true

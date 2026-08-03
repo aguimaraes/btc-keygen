@@ -1,3 +1,25 @@
+// `RUSTFLAGS --cfg getrandom_backend="..."` replaces the entropy source getrandom
+// would otherwise pick, with no runtime signal. btc-keygen requires the default
+// OS CSPRNG backend, so every override getrandom 0.4 defines is rejected here at
+// compile time. A value getrandom does not define selects no backend at all and so
+// leaves the default in place; see the matching check-cfg list in Cargo.toml.
+#[cfg(any(
+    getrandom_backend = "custom",
+    getrandom_backend = "extern_impl",
+    getrandom_backend = "unsupported",
+    getrandom_backend = "rdrand",
+    getrandom_backend = "rndr",
+    getrandom_backend = "efi_rng",
+    getrandom_backend = "windows_legacy",
+    getrandom_backend = "linux_getrandom",
+    getrandom_backend = "linux_raw",
+))]
+compile_error!(
+    "getrandom_backend is overridden. btc-keygen must use getrandom's default OS CSPRNG \
+     backend; an override can substitute a weaker or caller-supplied entropy source. \
+     Remove --cfg getrandom_backend from RUSTFLAGS and .cargo/config.toml, then rebuild."
+);
+
 use std::fmt;
 
 /// Error type for entropy operations.

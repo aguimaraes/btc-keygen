@@ -322,6 +322,7 @@ footer code{font-size:.85em}
   <a href="#how">how it works</a>
   <a href="#using">using your keys</a>
   <a href="#security">security</a>
+    <a href="#randomness">randomness</a>
   <a href="#download">download</a>
   <a href="#usage">usage</a>
   <a href="#faq">faq</a>
@@ -455,6 +456,397 @@ footer code{font-size:.85em}
     a new address controlled by the wallet. The old address ends up empty.
     Generally the safer option because the private key is used only once.</li>
   </ul>
+</section>
+
+<section id="randomness">
+  <h2>Where the randomness comes from</h2>
+
+  <p>Your private key is 32 bytes taken from the operating system and used
+  exactly as they arrive. No hashing, no mixing, no derivation. That makes
+  the key precisely as strong, or as weak, as those 32 bytes, so the only
+  question worth asking is where they come from and what could change them
+  quietly.</p>
+
+  <p>The question became urgent in July 2026. One model of one vendor's
+  hardware wallet was found to have shipped firmware whose build guard
+  tested whether a configuration macro was <em>defined</em> rather than
+  whether it was <em>enabled</em>. In affected builds a software generator
+  seeded from a chip serial number and a timer stood in for the real source,
+  and seed entropy fell from 128 bits to roughly 32. The firmware had been
+  public since March 2021, and reading that source did not reveal it. Those
+  details are as publicly reported, not something measured here. So the rest
+  of this page names files, line numbers and commands.</p>
+
+  <h3>The one call site</h3>
+
+  <p>One place in btc-keygen asks the operating system for random bytes.
+  <code>grep -rn getrandom src/</code> finds it, along with two doc comments
+  that mention it:</p>
+
+<pre><code>src/entropy.rs:27:        getrandom::fill(dest).map_err(|e| EntropyError(format!("OS CSPRNG failed: {}", e)))
+src/lib.rs:30://! - Entropy comes from the OS CSPRNG via [`getrandom`](https://docs.rs/getrandom).
+src/keygen.rs:206:/// entropy comes from the operating system's CSPRNG (`getrandom` syscall on</code></pre>
+
+  <p>That call is the body of <code>OsEntropy::fill_bytes</code>
+  (src/entropy.rs:26-28). <code>generate()</code> hardcodes
+  <code>OsEntropy</code> (src/keygen.rs:218-220); the injectable form
+  <code>generate_with_entropy</code> is <code>pub(crate)</code>
+  (src/keygen.rs:184), the whole <code>entropy</code> module is
+  <code>pub(crate)</code> (src/lib.rs:58), and nothing from it is
+  re-exported (src/lib.rs:64-69). No public API accepts an entropy
+  source.</p>
+
+  <p>There is no <code>build.rs</code> in this repository. One does run
+  during a build: secp256k1-sys 0.11.0 ships one to compile the vendored C
+  library. It emits no <code>cargo::rustc-cfg</code> of any kind, so no
+  build script picks the entropy backend.</p>
+
+  <p>The test doubles <code>FixedEntropy</code> and
+  <code>FailingEntropy</code> sit behind <code>#[cfg(test)]</code>
+  (src/entropy.rs:31, 37, 47, 61, 64). The incident above turned on a guard
+  that tested the wrong thing, so be exact about this one: it keys on the
+  crate being compiled as a test target, not on the release profile.
+  Measured: <code>cargo test --release --locked --lib --no-run</code>
+  produces an optimized binary in which <code>strings -a</code> finds both
+  <code>fixed entropy exhausted</code> and
+  <code>simulated entropy failure</code>. Neither string appears in a
+  release build of the tool. That test binary is not what the releases page
+  serves, and neither double reaches the library a downstream crate
+  links.</p>
+
+  <p>Two limits sit alongside that. One call site is not one way to get a
+  key: <code>PrivateKey::from_bytes</code> (src/keygen.rs:114) and
+  <code>PrivateKey::from_hex</code> (src/keygen.rs:144) are public, and a
+  key imported through either touches no entropy source at all. And the
+  count is measured, not enforced. <code>Secp256k1::new()</code> at
+  src/pubkey.rs:8 would begin drawing randomness of its own through a
+  second, differently versioned getrandom the moment anything in the
+  dependency graph enabled secp256k1's optional <code>rand</code> feature
+  (secp256k1-0.31.1/src/context.rs:212-220). It is off today:
+  <code>cargo tree --locked --target all -i rand</code> reports that it has
+  nothing to print. Cargo features are additive and nothing here pins
+  secp256k1's feature set, so that change would arrive without a warning.</p>
+
+  <h3>What happens to the 32 bytes</h3>
+
+  <p>They become the key verbatim. The buffer is filled in place at
+  src/keygen.rs:190, straight into the key's own storage. Nothing is folded
+  in, and nothing is reduced modulo anything. The tool's own test proves it
+  on a known input: <code>test_full_pipeline_deterministic</code>
+  (src/lib.rs:108) feeds 32 fixed bytes through the same
+  <code>generate_with_entropy</code> the OS path uses and asserts the
+  private key equals those bytes, then checks the WIF and address that
+  follow. Run it with
+  <code>cargo test --locked --lib test_full_pipeline_deterministic</code>,
+  and cross-check the printed form with
+  <code>btc-keygen generate --from-hex &lt;those bytes&gt; --hex</code>.</p>
+
+  <p>The draw sits inside a rejection loop (src/keygen.rs:187-196,
+  <code>MAX_RETRIES = 32</code> at src/keygen.rs:224). If the 32 bytes are
+  not a valid secp256k1 scalar they are zeroized whole and a fresh 32 bytes
+  requested, which is roughly a 1 in 2<sup>128</sup> event. Bytes are used
+  verbatim or discarded entirely. Nothing in between.</p>
+
+  <p>Using them verbatim is plumbing, not a security property. It means the
+  key is exactly as strong as the bytes the operating system handed over,
+  which is why the source is the only part of this worth arguing about.</p>
+
+  <p>With <code>--from-hex</code> (src/main.rs:86-100, reaching
+  <code>PrivateKey::from_hex</code> at src/keygen.rs:144) the OS random
+  number generator is never consulted. Bringing your own 32 bytes is a
+  supported path, and on it the security of the key depends entirely on how
+  you sourced them. Supply them on stdin:
+  <code>btc-keygen generate --from-hex - &lt; key.hex</code>. Passing the
+  key as the argument value is deprecated and goes away in 0.4.0, because
+  an argument lands in your shell history and is visible to <code>ps</code>
+  while the command runs, and neither exposure can be undone afterwards
+  (src/main.rs:20-29, docs/01-threat-model.md T11).</p>
+
+  <h3>Which backend each release target gets</h3>
+
+  <p>Cargo.toml requests <code>getrandom = "0.4"</code>, which is a range.
+  Cargo.lock pins 0.4.3 (Cargo.lock:207), and release builds consume it
+  with <code>--locked</code>, so everything below is a property of 0.4.3,
+  not of 0.4. Cargo.lock also lists getrandom 0.3.4
+  (Cargo.lock:195), so <code>cargo tree -i getrandom</code> will tell you
+  the name is ambiguous; that entry arrives through secp256k1's
+  wasm32-only dev-dependency (secp256k1-0.31.1/Cargo.toml:132-134) and is
+  built for no released target. Exactly one getrandom compiles in:
+  <code>cargo tree --locked -i getrandom@0.4.3</code> prints btc-keygen and
+  nothing else.</p>
+
+  <p>With no <code>getrandom_backend</code> cfg set anywhere in the tree,
+  this is the backend the compiler selects for each of the six targets in
+  .github/workflows/release.yml:40-62:</p>
+
+  <table>
+    <thead><tr><th>target</th><th>backend</th><th>call</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>x86_64-apple-darwin</code></td>
+        <td><code>getentropy</code></td>
+        <td><code>getentropy(2)</code></td>
+      </tr>
+      <tr>
+        <td><code>aarch64-apple-darwin</code></td>
+        <td><code>getentropy</code></td>
+        <td><code>getentropy(2)</code></td>
+      </tr>
+      <tr>
+        <td><code>x86_64-unknown-linux-musl</code></td>
+        <td><code>linux_android_with_fallback</code></td>
+        <td><code>getrandom(2)</code>, else <code>/dev/urandom</code></td>
+      </tr>
+      <tr>
+        <td><code>aarch64-unknown-linux-musl</code></td>
+        <td><code>linux_android_with_fallback</code></td>
+        <td><code>getrandom(2)</code>, else <code>/dev/urandom</code></td>
+      </tr>
+      <tr>
+        <td><code>x86_64-unknown-freebsd</code></td>
+        <td><code>getrandom</code></td>
+        <td><code>getrandom(2)</code> with flags 0</td>
+      </tr>
+      <tr>
+        <td><code>x86_64-pc-windows-gnu</code></td>
+        <td><code>windows</code></td>
+        <td><code>ProcessPrng</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>The backend column is the checkable one: it names the module
+  getrandom's own selection chain reaches
+  (getrandom-0.4.3/src/backends.rs:10-36), so you can read the
+  <code>cfg_if</code> arms for your target instead of taking the last
+  column on trust. On macOS the call is <code>getentropy(2)</code> in
+  256-byte chunks (getrandom-0.4.3/src/backends/getentropy.rs:26-29), with
+  no retry path and no fallback.</p>
+
+  <p>Measured on a local release build for aarch64-apple-darwin, v0.3.0,
+  rustc 1.97.1, <code>cargo build --release --locked</code>:
+  <code>nm -u</code> lists 78 undefined symbols, of which exactly one is
+  randomness-related, <code>_getentropy</code>.
+  <code>strings -a</code> finds no <code>/dev/urandom</code>,
+  <code>arc4random</code>, <code>SecRandomCopyBytes</code>,
+  <code>CCRandomGenerateBytes</code> or <code>rdrand</code>. Treat that
+  second check as corroboration only: <code>strings</code> does not surface
+  <code>getentropy</code> on this file either, so a negative result there
+  cannot tell absent from invisible. <code>nm -u</code> is the check that
+  carries weight. Two further limits. The import list is a property of one
+  build of one target, so don't expect that symbol elsewhere. And that file
+  was built on this machine, not downloaded: the published artefacts are
+  named <code>btc-keygen-macos-aarch64</code> and so on
+  (.github/workflows/release.yml:91-95), and it's the one you actually run
+  that needs checking, against the release SHA256SUMS.txt.</p>
+
+  <p>Two lines in the tree contradicted the table until this was written,
+  and the released ones still do. A rustdoc comment named
+  <code>BCryptGenRandom</code> for Windows, which getrandom 0.4.3 does not
+  call, and docs/04-dependencies.md named <code>getentropy</code> for the
+  BSDs, which holds for OpenBSD (backends.rs:52-59) and is wrong for
+  FreeBSD, a released target that takes <code>getrandom(2)</code>
+  (backends.rs:110-121). Neither line changed what the code does; both were
+  simply wrong, and both are corrected in the tree. The rustdoc published
+  for v0.3.0 on docs.rs still shows the old text, because that is what the
+  released crate contains.</p>
+
+  <p>Windows is the one target where the last step is not a kernel entry per
+  call. Microsoft documents <code>ProcessPrng</code> as the primary
+  interface to the user-mode per-processor PRNGs, quoted in getrandom's own
+  source at backends/windows.rs:3-4, and its state is seeded and reseeded by
+  the kernel, not derived from a serial number, a process ID or a clock.
+  That description is Microsoft's and was not measured here.
+  getrandom does check the return value: on emulation layers where
+  <code>ProcessPrng</code> can fail, Wine through 11.2 and Windows 8, it
+  returns an error instead of output (backends/windows.rs:50-75), so that
+  path fails closed too.</p>
+
+  <h3>The Linux fallback</h3>
+
+  <p>On the two musl targets there is a fallback, and the filename is not
+  decoration. The backend probes <code>getrandom(2)</code> once with a
+  zero-length call (linux_android_with_fallback.rs:35). If the kernel
+  answers ENOSYS, or on Linux but not Android a seccomp policy answers
+  EPERM (lines 40, 44-45), it switches for the life of the process to
+  reading <code>/dev/urandom</code> (use_file.rs:21), and the caller is not
+  told. Any other errno keeps the syscall. Before the read it opens
+  <code>/dev/random</code> and polls it with an infinite timeout
+  (use_file.rs:197-206), which waits on kernel pool initialization. So the
+  fallback is the kernel's own entropy source, not a generator written
+  here. It ought to be loud about switching, and it isn't. Note that the
+  musl builds link <code>getrandom</code> statically
+  (linux_android_with_fallback.rs:24-30), so the separate
+  <code>dlsym</code> route into the same fallback cannot fire in them.</p>
+
+  <p>That fallback trusts a path. <code>open_readonly</code>
+  (use_file.rs:55-67) opens <code>/dev/urandom</code> by name and never
+  <code>fstat</code>s the descriptor to confirm it is the kernel character
+  device, so a container or chroot with a mis-provisioned <code>/dev</code>
+  can feed the tool whatever file sits at that path. The default syscall
+  path cannot be substituted that way, which is most of the reason it
+  matters which path a build takes.</p>
+
+  <p>What the poll guarantees is the kernel's own entropy accounting, and
+  that has changed across versions: on Linux 5.6 and later a readable
+  <code>/dev/random</code> means the CSPRNG is initialized, whilst older
+  kernels signalled at an entropy threshold instead, and the ENOSYS branch
+  fires only on kernels old enough to lack the syscall altogether. This is
+  reasoned about, not measured. It is also specific to one path:
+  <code>getentropy(2)</code> on macOS and <code>ProcessPrng</code> on
+  Windows expose no unseeded state, and nothing in btc-keygen inspects pool
+  state on any platform. docs/01-threat-model.md:22-24 already records that
+  a freshly booted air-gapped machine with no hardware RNG may have thin
+  entropy, and treats that as an operator responsibility. This page does
+  not retire it.</p>
+
+  <h3>When the source fails</h3>
+
+  <p>A source that reports failure fails closed. The error from
+  <code>fill_bytes</code> propagates with <code>?</code> at
+  src/keygen.rs:190 before any validation runs, so a failed draw ends
+  generation immediately; the retry loop retries only a scalar outside
+  [1, n-1], and exhausting all 32 attempts returns an error rather than a
+  key (src/keygen.rs:198-200). src/main.rs:104-107 prints it and returns
+  <code>ExitCode::FAILURE</code>. Measured: a release build forced onto a
+  permanently failing backend with
+  <code>RUSTFLAGS='--cfg getrandom_backend="unsupported"' cargo build
+  --release --locked</code> wrote zero bytes to stdout, exited 1, and
+  printed to stderr <code>key generation failed: OS CSPRNG failed:
+  getrandom: this target is not supported</code>.</p>
+
+  <p>A source that reports success with bad bytes is not detected. That is
+  the honest boundary, and it is the shape the July incident took.
+  <code>is_valid_key</code> (src/keygen.rs:169) asks libsecp256k1 only
+  whether the 32 bytes are a scalar in range; it cannot tell random bytes
+  from predictable ones. There is no entropy health test anywhere in the
+  tree: no repetition test, no continuous-RNG test, no second source to
+  compare against. The only stuck source that gets rejected is one stuck at
+  all zeroes, or at or above the curve order, and only as a side effect of
+  range validation. One CI test,
+  <code>test_two_cli_runs_produce_different_keys</code>
+  (tests/integration.rs:332), fails against a fully stuck source. CI does
+  not run on your machine, and a source with 32 bits of entropy produces a
+  different key every run and would pass it.</p>
+
+  <h3>What a build flag can change</h3>
+
+  <p>getrandom 0.4 lets the builder replace the backend from the command
+  line with <code>RUSTFLAGS --cfg getrandom_backend="..."</code>, and that
+  selection happens ahead of platform detection
+  (getrandom-0.4.3/src/backends.rs:10-36). Measured on
+  x86_64-apple-darwin:
+  <code>RUSTFLAGS='--cfg getrandom_backend="rdrand"' cargo build --release
+  --locked --target x86_64-apple-darwin</code> compiles btc-keygen 0.3.0
+  with zero warnings, and the resulting binary imports no randomness symbol
+  at all, where the baseline imports <code>_getentropy</code>. RDRAND
+  instructions appear in its place. There is no warning because getrandom
+  declares the cfg and its value set itself, so
+  <code>unexpected_cfgs</code> never fires on it.</p>
+
+  <p>How far that goes: RDRAND and RNDR are hardware CSPRNGs, and both are
+  gated, though not in the same way. RDRAND is gated on CPUID detection
+  plus a one-time eight-draw repeat-value self-test that tolerates up to
+  two repeats and otherwise returns an error rather than degraded output
+  (rdrand.rs:56-68, 115-122, 188-193); the self-test runs once per process,
+  and the fill path (rdrand.rs:124-141) does not re-test. RNDR is gated on
+  FEAT_RNG detection only (rndr.rs:65-113) plus a five-attempt retry when
+  the hardware reports failure (rndr.rs:15, 25); there is no repeat-value
+  test on that path. So a substitution swaps one CSPRNG for another; it does
+  not collapse 128 bits to 32. It is still a downgrade: the key stops
+  depending on the kernel mixing several independent sources and starts
+  depending on one opaque hardware unit, checked once at process start. The
+  one documented RDRAND failure mode, all-ones output, is rejected here,
+  but only as a side effect of range validation.</p>
+
+  <p>Of the nine values getrandom 0.4.3 accepts
+  (getrandom-0.4.3/Cargo.toml:158), only <code>rdrand</code> and
+  <code>rndr</code> substitute quietly, and neither on every target.
+  <code>rdrand</code> compiles for the x86_64 targets;
+  <code>rndr</code> compiles only for aarch64-unknown-linux-musl, and on
+  aarch64-apple-darwin it is a hard compile error, because getrandom's
+  <code>std</code> feature is off here and its no_std FEAT_RNG detection is
+  Linux-only (rndr.rs:106-110). The rest were built and measured on
+  aarch64-apple-darwin with rustc 1.97.1. <code>custom</code> compiles and
+  then fails to link: <code>Undefined symbols for architecture arm64:
+  "___getrandom_v03_custom"</code>. That symbol does say v03 inside a 0.4.3
+  crate; the name is upstream's, not a typo here. Note that
+  <code>cargo check</code> and <code>cargo clippy</code> pass under
+  <code>custom</code>, so a check-only CI gate would catch nothing.
+  <code>extern_impl</code> fails with E0554 on stable and, on nightly,
+  with <code>#[fill_uninit] function required, but not found</code>, so it
+  also needs an implementation the builder deliberately supplies.
+  <code>unsupported</code> builds and then fails closed, as above.
+  <code>linux_getrandom</code>, <code>linux_raw</code> and
+  <code>windows_legacy</code> are refused at compile time on every target
+  where they do not apply, and where they do apply they are the same class
+  of OS call already in use, down to <code>RtlGenRandom</code> on Windows.
+  <code>efi_rng</code> cannot be built for any target on the release
+  matrix, and it is not an OS call in any case: it invokes the UEFI
+  firmware's <code>EFI_RNG_PROTOCOL</code> (efi_rng.rs:94-117), which runs
+  before an operating system exists.</p>
+
+  <p>A misspelt value is the quiet case, and it happens to be quiet in the
+  safe direction: it matches no arm of the selection chain, so the platform
+  default stays in place. <code>"rdrnd"</code>, <code>"CUSTOM"</code> (the
+  values are case-sensitive) and <code>""</code> all build with no
+  diagnostic whatsoever, and the binary still imports
+  <code>_getentropy</code>. Don't wait for a lint to catch a bad value.
+  rustc's <code>--check-cfg</code> validates <code>cfg(...)</code>
+  predicates written in source and never inspects <code>--cfg</code>
+  arguments: measured directly, a made-up value and a made-up cfg name both
+  compile silently under <code>-D warnings</code> with the full value list
+  declared. Cargo also builds registry dependencies with
+  <code>--cap-lints allow</code>, so getrandom's own declaration could not
+  warn you either.</p>
+
+  <p>The override does reach btc-keygen's own compilation unit, not only
+  getrandom's, which is what makes a guard possible: a temporary
+  <code>#[cfg(getrandom_backend = "custom")] compile_error!(...)</code> in
+  src/entropy.rs fired under that flag and stayed silent without it. A
+  four-line <code>compile_error!</code> rejecting all nine values would
+  turn every override above into a failed build. The tree now carries one
+  (src/entropy.rs:1-22): all nine values are rejected, verified by building
+  under each. No released binary has it. v0.3.0 predates the guard, and a
+  compile-time check protects whoever compiles the source, not whoever
+  downloaded a binary from the releases page.</p>
+
+  <h3>What is not measured</h3>
+
+  <p>Three gaps, stated outright. The unseeded-kernel behaviour above is
+  read from the kernel's contract, not observed, because no unseeded kernel
+  was available to test. That <code>custom</code> also fails to
+  link on the musl, FreeBSD and Windows targets follows from the same
+  missing symbol but was measured only on macOS. And the claim that the six
+  published binaries carry no override rests on there being no
+  <code>.cargo/config.toml</code>, no occurrence of
+  <code>getrandom_backend</code> in any tracked file, and no
+  <code>RUSTFLAGS</code> in release.yml, which is inference about a build
+  configuration. Inference about build configuration is exactly what failed
+  in the incident at the top of this page. It is weakest for two targets:
+  aarch64-unknown-linux-musl and x86_64-unknown-freebsd are built by
+  <code>cross</code> inside a container image this repository does not
+  control (.github/workflows/release.yml:79-83). Verify the artefact you
+  run, not the workflow that made it.</p>
+
+  <p>This is not a comparison. btc-keygen is not a hardware wallet: no
+  secure element, no tamper resistance, no supply-chain attestation, no
+  independent audit. It runs on a general-purpose operating system and
+  prints a private key to a terminal. A dedicated device remains the
+  stronger choice for most people, incident or no incident. What this page
+  documents is one property, where the 32 bytes come from, and one property
+  is not a threat model. The threat model is at
+  docs/01-threat-model.md.</p>
+
+  <p class="warning">
+    <strong>Important.</strong> Nothing in any released binary asserts, at
+    build time or run time, which entropy backend it was compiled with. The
+    guard in the tree fails a build, which is no help to a binary already
+    built. The reason to believe any of the above is that every line of it
+    is reproducible from the commands named. btc-keygen is alpha. Not
+    independently audited. Do not use with funds you cannot afford to
+    lose.
+  </p>
 </section>
 
 <section id="security">

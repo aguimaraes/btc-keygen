@@ -1,3 +1,17 @@
+// `RUSTFLAGS --cfg secp256k1_fuzz` swaps libsecp256k1 for stubs intended only for
+// fuzzing harnesses. In that build secp256k1_ec_pubkey_create copies the secret key
+// straight into the public key (secp256k1-sys-0.11.0/src/lib.rs:1274-1282), so the
+// address derived below would carry the private key inside it and publishing the
+// address would publish the key. The substitution is silent and warning-free, so it
+// is rejected here at compile time.
+#[cfg(secp256k1_fuzz)]
+compile_error!(
+    "secp256k1_fuzz is set. That replaces libsecp256k1 with fuzzing stubs whose \
+     pubkey derivation copies the private key into the public key, so every address \
+     this build produces would expose its own private key. Remove --cfg \
+     secp256k1_fuzz from RUSTFLAGS and .cargo/config.toml, then rebuild."
+);
+
 /// Derives the compressed public key (33 bytes) from a private key.
 ///
 /// Returns a 33-byte array where the first byte is `0x02` or `0x03`

@@ -203,8 +203,9 @@ pub(crate) fn generate_with_entropy(
 /// Generates a new Bitcoin private key using OS-provided cryptographic randomness.
 ///
 /// Returns a [`PrivateKey`] containing a validated secp256k1 scalar. The
-/// entropy comes from the operating system's CSPRNG (`getrandom` syscall on
-/// Linux, `getentropy` on macOS, `BCryptGenRandom` on Windows).
+/// entropy comes from the operating system's CSPRNG: the `getrandom(2)` syscall
+/// on Linux and FreeBSD, falling back to `/dev/urandom` where the syscall is
+/// unavailable, `getentropy` on macOS, and `ProcessPrng` on Windows.
 ///
 /// # Errors
 ///
