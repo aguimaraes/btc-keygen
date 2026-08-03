@@ -6,7 +6,14 @@
 /// to get the corresponding Bitcoin address.
 pub fn derive_pubkey(key: &crate::keygen::PrivateKey) -> [u8; 33] {
     let secp = secp256k1::Secp256k1::new();
-    let public_key = secp256k1::PublicKey::from_secret_key(&secp, &key.to_secret_key());
+
+    // The `SecretKey` is a stack copy of the key that does not erase itself, so
+    // it is erased by hand once the public key is out. What libsecp256k1 leaves
+    // on its own stack during derivation is beyond this crate's reach.
+    let mut secret = key.to_secret_key();
+    let public_key = secp256k1::PublicKey::from_secret_key(&secp, &secret);
+    secret.non_secure_erase();
+
     public_key.serialize()
 }
 

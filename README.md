@@ -40,6 +40,9 @@ let key = btc_keygen::generate()?;
 let wif = btc_keygen::encode_wif(&key);
 let pubkey = btc_keygen::derive_pubkey(&key);
 let address = btc_keygen::derive_address(&pubkey);
+
+println!("{address}");
+println!("{}", wif.expose_str()); // exposure is explicit and copies escape here
 ```
 
 | Function                        | Input                 | Output                                         |
@@ -47,11 +50,16 @@ let address = btc_keygen::derive_address(&pubkey);
 | `generate()`                    | (none)                | `Result<PrivateKey, Error>`                    |
 | `PrivateKey::from_bytes(bytes)` | `[u8; 32]`            | `Result<PrivateKey, Error>` (validated scalar) |
 | `PrivateKey::from_hex(hex)`     | `&str` (64 hex chars) | `Result<PrivateKey, Error>` (validated scalar) |
-| `encode_wif(&key)`              | `&PrivateKey`         | `String` (starts with `K` or `L`)              |
+| `key.to_hex()`                  | `&PrivateKey`         | `SecretKeyHex` (64 hex ASCII bytes)            |
+| `encode_wif(&key)`              | `&PrivateKey`         | `SecretWif` (52 Base58 ASCII bytes)            |
 | `derive_pubkey(&key)`           | `&PrivateKey`         | `[u8; 33]` (compressed public key)             |
 | `derive_address(&pubkey)`       | `&[u8; 33]`           | `String` (Bech32 address, `bc1q...`)           |
 
-`PrivateKey` zeroizes its bytes when dropped. Full API docs at [docs.rs/btc-keygen](https://docs.rs/btc-keygen).
+Secret material never leaves the library as a `String`. `SecretWif` and
+`SecretKeyHex` zeroize on drop, redact their `Debug` output, and cannot be
+cloned, copied, or printed with `{}`; read them with `expose_bytes()` or
+`expose_str()`. `PrivateKey` zeroizes its bytes when dropped. Full API docs at
+[docs.rs/btc-keygen](https://docs.rs/btc-keygen).
 
 ## Install (CLI)
 
@@ -79,9 +87,20 @@ btc-keygen generate --pubkey     # also show compressed public key
 btc-keygen generate --json       # JSON output
 btc-keygen generate --hex --pubkey --json   # everything
 
-# Provide your own 64-character hex private key instead of OS entropy:
+# Import your own 64-character hex private key instead of using OS entropy.
+# Read it from stdin so the key never appears in the process arguments:
+btc-keygen generate --from-hex - < key.hex   # from a file
+btc-keygen generate --from-hex -             # prompts when run interactively
+
+# Accepted, but avoid it: a key passed as an argument is saved to your shell
+# history and is visible to `ps` while the command runs. The tool warns when
+# you do this, and it cannot undo either exposure.
 btc-keygen generate --from-hex <HEX>
 ```
+
+Note that `echo $HEX | btc-keygen generate --from-hex -` still records the key
+in your shell history, because the shell logs the whole pipeline. Read from a
+file or type the key at the prompt.
 
 ## Security
 

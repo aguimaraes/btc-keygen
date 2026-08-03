@@ -1,5 +1,6 @@
 use crate::Error;
 use crate::entropy::{EntropyError, EntropySource};
+use crate::secret::SecretKeyHex;
 use secp256k1::SecretKey;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -10,12 +11,38 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 ///
 /// When this value goes out of scope, the underlying bytes are securely
 /// overwritten with zeros to prevent secrets from lingering in memory.
+///
+/// The 32 bytes live in a heap buffer behind a `Box`, so moving a `PrivateKey`
+/// moves a pointer rather than memcpying the key into a fresh stack slot that
+/// nothing would ever erase. Constructors fill that buffer in place for the
+/// same reason: the key material is never staged in a bare `[u8; 32]` local.
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct PrivateKey {
-    bytes: [u8; 32],
+    // Boxed so that moving a PrivateKey moves a pointer: the bytes are written
+    // once and erased once, at the address they were born.
+    bytes: Box<[u8; 32]>,
 }
 
 impl PrivateKey {
+    /// A zeroed buffer for a constructor to fill in place.
+    ///
+    /// Private, and deliberately not `pub(crate)`: the value is not a valid key
+    /// until [`Self::validated`] has approved it.
+    fn zeroed() -> Self {
+        Self {
+            bytes: Box::new([0u8; 32]),
+        }
+    }
+
+    /// Consumes a filled buffer and enforces the scalar invariant, so no
+    /// unvalidated `PrivateKey` can escape this module.
+    fn validated(self) -> Result<PrivateKey, Error> {
+        if !is_valid_key(self.as_bytes()) {
+            return Err(Error("not a valid secp256k1 scalar".into()));
+        }
+        Ok(self)
+    }
+
     /// Returns a reference to the raw 32-byte private key.
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.bytes
@@ -24,7 +51,36 @@ impl PrivateKey {
     /// Converts the private key into a [`secp256k1::SecretKey`] for use with
     /// the `secp256k1` crate directly.
     pub fn to_secret_key(&self) -> SecretKey {
-        SecretKey::from_byte_array(self.bytes).expect("PrivateKey always holds a validated scalar")
+        SecretKey::from_byte_array(*self.as_bytes())
+            .expect("PrivateKey always holds a validated scalar")
+    }
+
+    /// Encodes the key as 64 lowercase hexadecimal ASCII bytes.
+    ///
+    /// The result is a [`SecretKeyHex`]: it erases itself on drop and redacts
+    /// its `Debug` output. The digits are written straight into that buffer, so
+    /// encoding a key allocates nothing beyond the buffer itself and leaves no
+    /// unerased temporaries on the heap.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let hex = "0000000000000000000000000000000000000000000000000000000000000001";
+    /// let key = btc_keygen::PrivateKey::from_hex(hex)?;
+    /// assert_eq!(key.to_hex().expose_str(), hex);
+    /// # Ok::<(), btc_keygen::Error>(())
+    /// ```
+    #[must_use]
+    pub fn to_hex(&self) -> SecretKeyHex {
+        const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
+
+        let mut hex = SecretKeyHex::zeroed();
+        let digits = hex.bytes_mut();
+        for (i, byte) in self.bytes.iter().enumerate() {
+            digits[i * 2] = HEX_DIGITS[usize::from(byte >> 4)];
+            digits[i * 2 + 1] = HEX_DIGITS[usize::from(byte & 0x0f)];
+        }
+        hex
     }
 
     /// Creates a `PrivateKey` from 32 raw bytes, validating that they form a
@@ -33,6 +89,9 @@ impl PrivateKey {
     /// Use this when you have your own source of private key material (for
     /// example, physical entropy like dice rolls converted to hex) and want
     /// to skip OS entropy generation.
+    ///
+    /// `bytes` is `Copy`, so the caller keeps its own array; erasing that copy
+    /// is the caller's job. This function erases the copy it receives.
     ///
     /// # Errors
     ///
@@ -47,12 +106,11 @@ impl PrivateKey {
     /// let key = btc_keygen::PrivateKey::from_bytes(bytes)?;
     /// # Ok::<(), btc_keygen::Error>(())
     /// ```
-    pub fn from_bytes(bytes: [u8; 32]) -> Result<PrivateKey, Error> {
-        if !is_valid_key(bytes) {
-            return Err(Error("not a valid secp256k1 scalar".into()));
-        }
-
-        Ok(PrivateKey { bytes })
+    pub fn from_bytes(mut bytes: [u8; 32]) -> Result<PrivateKey, Error> {
+        let mut key = Self::zeroed();
+        key.bytes.copy_from_slice(&bytes);
+        bytes.zeroize();
+        key.validated()
     }
 
     /// Creates a `PrivateKey` from a 64-character hexadecimal string,
@@ -86,20 +144,31 @@ impl PrivateKey {
             )));
         }
 
-        let mut bytes = [0u8; 32];
+        // Decoded straight into the key's own buffer: no stack scratch array
+        // holds the assembled key, not even briefly.
+        let mut key = Self::zeroed();
         for i in 0..32 {
-            bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16)
+            key.bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16)
                 .map_err(|_| Error(format!("invalid hex at position {}", i * 2)))?;
         }
-        Self::from_bytes(bytes)
+        key.validated()
     }
 }
 
 /// Checks whether 32 bytes represent a valid secp256k1 private key.
 ///
 /// A valid key is a scalar in `[1, n-1]` where `n` is the curve order.
-pub fn is_valid_key(bytes: [u8; 32]) -> bool {
-    SecretKey::from_byte_array(bytes).is_ok()
+///
+/// Takes a reference so that testing a candidate does not copy it, and erases
+/// the `SecretKey` it builds internally.
+pub fn is_valid_key(bytes: &[u8; 32]) -> bool {
+    match SecretKey::from_byte_array(*bytes) {
+        Ok(mut key) => {
+            key.non_secure_erase();
+            true
+        }
+        Err(_) => false,
+    }
 }
 
 /// Generates a new private key using the provided entropy source.
@@ -111,14 +180,14 @@ pub(crate) fn generate_with_entropy(
     entropy: &dyn EntropySource,
 ) -> Result<PrivateKey, EntropyError> {
     for _ in 0..MAX_RETRIES {
-        let mut bytes = [0u8; 32];
-        entropy.fill_bytes(&mut bytes)?;
+        // Filled in place: fresh entropy never lands in a stack array.
+        let mut key = PrivateKey::zeroed();
+        entropy.fill_bytes(&mut key.bytes[..])?;
 
-        if is_valid_key(bytes) {
-            return Ok(PrivateKey { bytes });
+        if is_valid_key(key.as_bytes()) {
+            return Ok(key);
         }
-        // Invalid scalar: zeroize and retry.
-        bytes.zeroize();
+        // Invalid scalar: dropping `key` zeroizes the buffer before the retry.
     }
 
     Err(EntropyError(
@@ -182,21 +251,21 @@ mod tests {
     #[test]
     fn test_zero_key_rejected() {
         let zero = [0u8; 32];
-        assert!(!is_valid_key(zero), "zero must not be a valid private key");
+        assert!(!is_valid_key(&zero), "zero must not be a valid private key");
     }
 
     #[test]
     fn test_one_key_valid() {
         let mut one = [0u8; 32];
         one[31] = 1;
-        assert!(is_valid_key(one), "scalar 1 must be a valid private key");
+        assert!(is_valid_key(&one), "scalar 1 must be a valid private key");
     }
 
     #[test]
     fn test_curve_order_minus_one_valid() {
         let n_minus_1 = curve_order_minus_one();
         assert!(
-            is_valid_key(n_minus_1),
+            is_valid_key(&n_minus_1),
             "n-1 must be a valid private key (maximum scalar)"
         );
     }
@@ -204,7 +273,7 @@ mod tests {
     #[test]
     fn test_curve_order_rejected() {
         assert!(
-            !is_valid_key(CURVE_ORDER),
+            !is_valid_key(&CURVE_ORDER),
             "the curve order n itself must not be a valid private key"
         );
     }
@@ -213,7 +282,7 @@ mod tests {
     fn test_curve_order_plus_one_rejected() {
         let n_plus_1 = curve_order_plus_one();
         assert!(
-            !is_valid_key(n_plus_1),
+            !is_valid_key(&n_plus_1),
             "n+1 must not be a valid private key"
         );
     }
@@ -222,7 +291,7 @@ mod tests {
     fn test_all_ff_rejected() {
         let all_ff = [0xFF; 32];
         assert!(
-            !is_valid_key(all_ff),
+            !is_valid_key(&all_ff),
             "all 0xFF bytes exceed curve order and must be rejected"
         );
     }
@@ -233,7 +302,7 @@ mod tests {
         let mut key = [0u8; 32];
         key[0] = 0x0A;
         key[31] = 0x0B;
-        assert!(is_valid_key(key));
+        assert!(is_valid_key(&key));
     }
 
     // ---------------------------------------------------------------
@@ -336,6 +405,27 @@ mod tests {
         let mut expected = [0u8; 32];
         expected[31] = 0x01;
         assert_eq!(key.as_bytes(), &expected);
+    }
+
+    #[test]
+    fn test_to_hex_round_trips_from_hex() {
+        let hex = "0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d";
+        let key = PrivateKey::from_hex(hex).unwrap();
+        assert_eq!(key.to_hex().expose_str(), hex);
+    }
+
+    #[test]
+    fn test_to_hex_is_lowercase_and_64_bytes() {
+        let key = PrivateKey::from_hex(
+            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140",
+        )
+        .unwrap();
+        let hex = key.to_hex();
+        assert_eq!(hex.expose_bytes().len(), 64);
+        assert_eq!(
+            hex.expose_str(),
+            "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"
+        );
     }
 
     #[test]

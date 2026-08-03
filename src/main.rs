@@ -1,7 +1,7 @@
-use std::io::{self, Write};
+use std::io::{self, BufRead, IsTerminal, Read, Write};
 use std::process::ExitCode;
 
-use btc_keygen::PrivateKey;
+use btc_keygen::{PrivateKey, SecretKeyHex, SecretWif};
 use clap::{Parser, Subcommand};
 use zeroize::Zeroizing;
 
@@ -17,8 +17,17 @@ struct Cli {
 enum Commands {
     /// Generate a new Bitcoin keypair
     Generate {
-        /// Pass your own private key hex
-        #[arg(long)]
+        /// Import your own private key hex; use `-` to read it from stdin
+        ///
+        /// Passing the key as the argument value is DEPRECATED and will be
+        /// removed in 0.4.0. An argument is written to your shell history and is
+        /// visible to `ps` while the command runs, and neither exposure can be
+        /// undone afterwards. Read the key from stdin instead:
+        ///
+        ///   btc-keygen generate --from-hex - < key.hex
+        ///
+        /// With no redirection, `-` prompts for the key when run interactively.
+        #[arg(long, value_name = "HEX|-")]
         from_hex: Option<String>,
 
         /// Include raw private key in hexadecimal
@@ -37,8 +46,8 @@ enum Commands {
 
 struct KeypairOutput {
     address: String,
-    wif: Zeroizing<String>,
-    private_key_hex: Option<Zeroizing<String>>,
+    wif: SecretWif,
+    private_key_hex: Option<SecretKeyHex>,
     pubkey_hex: Option<String>,
 }
 
@@ -74,8 +83,15 @@ fn run_generate(
     }
     drop(stderr);
 
-    let private_key = if let Some(hex) = from_hex {
-        match PrivateKey::from_hex(&hex) {
+    let private_key = if let Some(source) = from_hex {
+        let hex = match resolve_key_hex(source) {
+            Ok(hex) => hex,
+            Err(e) => {
+                eprintln!("failed to read private key: {}", e);
+                return ExitCode::FAILURE;
+            }
+        };
+        match PrivateKey::from_hex(hex.trim()) {
             Ok(key) => key,
             Err(e) => {
                 eprintln!("invalid private key: {}", e);
@@ -92,20 +108,14 @@ fn run_generate(
         }
     };
 
-    let wif_str = Zeroizing::new(btc_keygen::encode_wif(&private_key));
+    let wif = btc_keygen::encode_wif(&private_key);
 
     let compressed_pubkey = btc_keygen::derive_pubkey(&private_key);
 
     let address = btc_keygen::derive_address(&compressed_pubkey);
 
     let private_key_hex = if include_hex {
-        Some(Zeroizing::new(
-            private_key
-                .as_bytes()
-                .iter()
-                .map(|b| format!("{:02x}", b))
-                .collect(),
-        ))
+        Some(private_key.to_hex())
     } else {
         None
     };
@@ -123,7 +133,7 @@ fn run_generate(
 
     let keypair = KeypairOutput {
         address,
-        wif: wif_str,
+        wif,
         private_key_hex,
         pubkey_hex,
     };
@@ -136,6 +146,93 @@ fn run_generate(
     }
 
     ExitCode::SUCCESS
+}
+
+/// Longest key input accepted: 64 hex digits plus room for surrounding
+/// whitespace and a line ending. Bounded so that a mistaken `cat` of a large
+/// file is rejected instead of being read into memory.
+const MAX_HEX_INPUT: usize = 128;
+
+/// Resolves the `--from-hex` value into private key hex.
+///
+/// `-` reads the key from stdin, which is the only channel that keeps it out of
+/// the process argument list. Any other value *is* the key, and the operator is
+/// warned that it has already leaked somewhere this program cannot reach.
+fn resolve_key_hex(source: String) -> io::Result<Zeroizing<String>> {
+    if source != "-" {
+        // Wrapped so this process at least erases its own copy. The argument
+        // vector itself belongs to the kernel and cannot be erased here.
+        let hex = Zeroizing::new(source);
+        warn_key_on_command_line(&mut io::stderr().lock())?;
+        return Ok(hex);
+    }
+
+    let mut stdin = io::stdin().lock();
+    if stdin.is_terminal() {
+        // Without a prompt, an interactive run is indistinguishable from a hang.
+        let mut stderr = io::stderr().lock();
+        write!(stderr, "private key hex: ")?;
+        stderr.flush()?;
+    }
+    read_hex_line(&mut stdin)
+}
+
+/// Reads one line of private key hex from `reader`.
+///
+/// The buffer is allocated once at full capacity, so growing it cannot leave
+/// half-written copies of the key on the heap, and it erases itself on drop.
+///
+/// # Errors
+///
+/// Returns an error on empty input, or on a line longer than
+/// [`MAX_HEX_INPUT`]. Over-long input is rejected rather than truncated: a
+/// silently shortened key would derive a different, unrecoverable address.
+fn read_hex_line(reader: &mut dyn BufRead) -> io::Result<Zeroizing<String>> {
+    let mut line = Zeroizing::new(String::with_capacity(MAX_HEX_INPUT + 1));
+
+    // One byte past the cap, so hitting it is detectable.
+    reader.take(MAX_HEX_INPUT as u64 + 1).read_line(&mut line)?;
+
+    if line.len() > MAX_HEX_INPUT {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("key input exceeds {MAX_HEX_INPUT} bytes"),
+        ));
+    }
+    if line.trim().is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::UnexpectedEof,
+            "no private key on stdin",
+        ));
+    }
+    Ok(line)
+}
+
+fn warn_key_on_command_line(stderr: &mut dyn Write) -> io::Result<()> {
+    writeln!(stderr)?;
+    writeln!(
+        stderr,
+        "DEPRECATED: the private key was passed as a command-line argument."
+    )?;
+    writeln!(stderr, "This form will be removed in 0.4.0.")?;
+    writeln!(stderr)?;
+    writeln!(
+        stderr,
+        "It is now in this shell's history file, and it was visible to any"
+    )?;
+    writeln!(
+        stderr,
+        "process that ran `ps` while this command was running. Neither of"
+    )?;
+    writeln!(stderr, "those can be undone by this program.")?;
+    writeln!(stderr)?;
+    writeln!(
+        stderr,
+        "Read the key from stdin instead, which avoids both:"
+    )?;
+    writeln!(stderr, "  btc-keygen generate --from-hex - < key.hex")?;
+    writeln!(stderr, "================================================")?;
+    Ok(())
 }
 
 fn print_output(keypair: &KeypairOutput, format: Format) -> io::Result<()> {
@@ -185,9 +282,17 @@ fn format_output(
 
 fn format_plain(writer: &mut dyn Write, keypair: &KeypairOutput) -> io::Result<()> {
     writeln!(writer, "address: {}", keypair.address)?;
-    writeln!(writer, "wif: {}", keypair.wif.as_str())?;
-    if let Some(hex) = keypair.private_key_hex.as_deref() {
-        writeln!(writer, "private_key_hex: {}", hex)?;
+
+    // Secrets go out as raw bytes: `write_all` hands them to the writer without
+    // routing them through the formatting machinery.
+    write!(writer, "wif: ")?;
+    writer.write_all(keypair.wif.expose_bytes())?;
+    writeln!(writer)?;
+
+    if let Some(hex) = &keypair.private_key_hex {
+        write!(writer, "private_key_hex: ")?;
+        writer.write_all(hex.expose_bytes())?;
+        writeln!(writer)?;
     }
     if let Some(pk) = keypair.pubkey_hex.as_deref() {
         writeln!(writer, "pubkey_hex: {}", pk)?;
@@ -198,9 +303,17 @@ fn format_plain(writer: &mut dyn Write, keypair: &KeypairOutput) -> io::Result<(
 fn format_json(writer: &mut dyn Write, keypair: &KeypairOutput) -> io::Result<()> {
     write!(writer, "{{")?;
     write!(writer, "\"address\":\"{}\"", keypair.address)?;
-    write!(writer, ",\"wif\":\"{}\"", keypair.wif.as_str())?;
-    if let Some(hex) = keypair.private_key_hex.as_deref() {
-        write!(writer, ",\"private_key_hex\":\"{}\"", hex)?;
+
+    // Base58 and hex need no JSON escaping, so the secret bytes can be written
+    // verbatim between the quotes.
+    write!(writer, ",\"wif\":\"")?;
+    writer.write_all(keypair.wif.expose_bytes())?;
+    write!(writer, "\"")?;
+
+    if let Some(hex) = &keypair.private_key_hex {
+        write!(writer, ",\"private_key_hex\":\"")?;
+        writer.write_all(hex.expose_bytes())?;
+        write!(writer, "\"")?;
     }
     if let Some(pk) = keypair.pubkey_hex.as_deref() {
         write!(writer, ",\"pubkey_hex\":\"{}\"", pk)?;
@@ -213,26 +326,116 @@ fn format_json(writer: &mut dyn Write, keypair: &KeypairOutput) -> io::Result<()
 mod tests {
     use super::*;
 
+    /// Secret types cannot be cloned or built from a literal, so fixtures come
+    /// from the real pipeline for the known scalar-1 test vector.
+    fn sample_key() -> PrivateKey {
+        PrivateKey::from_hex("0000000000000000000000000000000000000000000000000000000000000001")
+            .unwrap()
+    }
+
     fn sample_keypair() -> KeypairOutput {
         KeypairOutput {
             address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4".into(),
-            wif: Zeroizing::new("KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn".into()),
+            wif: btc_keygen::encode_wif(&sample_key()),
             private_key_hex: None,
             pubkey_hex: None,
         }
     }
 
     fn sample_keypair_all_fields() -> KeypairOutput {
+        let key = sample_key();
         KeypairOutput {
             address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4".into(),
-            wif: Zeroizing::new("KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn".into()),
-            private_key_hex: Some(Zeroizing::new(
-                "0000000000000000000000000000000000000000000000000000000000000001".into(),
-            )),
+            wif: btc_keygen::encode_wif(&key),
+            private_key_hex: Some(key.to_hex()),
             pubkey_hex: Some(
                 "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798".into(),
             ),
         }
+    }
+
+    #[test]
+    fn test_debug_of_output_secrets_is_redacted() {
+        let kp = sample_keypair_all_fields();
+        let debug = format!("{:?} {:?}", kp.wif, kp.private_key_hex);
+        assert!(
+            !debug.contains("KwDi") && !debug.contains("000000"),
+            "Debug must not leak secrets, got: {debug}"
+        );
+    }
+
+    #[test]
+    fn test_read_hex_line_accepts_plain_line() {
+        let input = b"0000000000000000000000000000000000000000000000000000000000000001\n";
+        let hex = read_hex_line(&mut &input[..]).unwrap();
+        assert_eq!(hex.trim().len(), 64);
+        assert!(PrivateKey::from_hex(hex.trim()).is_ok());
+    }
+
+    #[test]
+    fn test_read_hex_line_tolerates_crlf_and_spaces() {
+        let input = b"  0000000000000000000000000000000000000000000000000000000000000001  \r\n";
+        let hex = read_hex_line(&mut &input[..]).unwrap();
+        assert!(PrivateKey::from_hex(hex.trim()).is_ok());
+    }
+
+    #[test]
+    fn test_read_hex_line_accepts_missing_trailing_newline() {
+        let input = b"0000000000000000000000000000000000000000000000000000000000000001";
+        let hex = read_hex_line(&mut &input[..]).unwrap();
+        assert!(PrivateKey::from_hex(hex.trim()).is_ok());
+    }
+
+    #[test]
+    fn test_read_hex_line_reads_only_the_first_line() {
+        let input =
+            b"0000000000000000000000000000000000000000000000000000000000000001\ntrailing junk\n";
+        let hex = read_hex_line(&mut &input[..]).unwrap();
+        assert!(PrivateKey::from_hex(hex.trim()).is_ok());
+    }
+
+    #[test]
+    fn test_read_hex_line_rejects_empty_input() {
+        assert!(
+            read_hex_line(&mut &b""[..]).is_err(),
+            "empty stdin must error"
+        );
+        assert!(
+            read_hex_line(&mut &b"\n"[..]).is_err(),
+            "a bare newline must error"
+        );
+    }
+
+    #[test]
+    fn test_read_hex_line_rejects_overlong_input_instead_of_truncating() {
+        let input = [b'0'; MAX_HEX_INPUT + 10];
+        let err = read_hex_line(&mut &input[..]).unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn test_warning_names_the_stdin_alternative() {
+        let mut buf = Vec::new();
+        warn_key_on_command_line(&mut buf).unwrap();
+        let warning = String::from_utf8(buf).unwrap();
+        assert!(warning.contains("--from-hex -"));
+        assert!(warning.to_lowercase().contains("history"));
+    }
+
+    /// A deprecation notice with no removal version never gets removed.
+    #[test]
+    fn test_warning_states_deprecation_and_removal_version() {
+        let mut buf = Vec::new();
+        warn_key_on_command_line(&mut buf).unwrap();
+        let warning = String::from_utf8(buf).unwrap();
+        assert!(
+            warning.contains("DEPRECATED"),
+            "the warning must say the form is deprecated, got:\n{warning}"
+        );
+        assert!(
+            warning.contains("0.4.0"),
+            "the warning must name the removal version, got:\n{warning}"
+        );
     }
 
     #[test]

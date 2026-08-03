@@ -1,4 +1,5 @@
-use std::process::Command;
+use std::io::Write;
+use std::process::{Command, Stdio};
 
 /// Helper: runs the btc-keygen binary with the given arguments.
 fn run_btc_keygen(args: &[&str]) -> std::process::Output {
@@ -7,6 +8,153 @@ fn run_btc_keygen(args: &[&str]) -> std::process::Output {
         .args(args)
         .output()
         .expect("failed to execute btc-keygen binary")
+}
+
+/// Helper: runs the binary with `input` piped to its stdin.
+fn run_btc_keygen_with_stdin(args: &[&str], input: &[u8]) -> std::process::Output {
+    let binary = env!("CARGO_BIN_EXE_btc-keygen");
+    let mut child = Command::new(binary)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("failed to spawn btc-keygen binary");
+
+    child
+        .stdin
+        .as_mut()
+        .expect("stdin was piped")
+        .write_all(input)
+        .expect("failed to write to stdin");
+
+    child.wait_with_output().expect("failed to collect output")
+}
+
+// ---------------------------------------------------------------
+// Importing a key without putting it in the process arguments
+// ---------------------------------------------------------------
+
+const SCALAR_ONE_HEX: &str = "0000000000000000000000000000000000000000000000000000000000000001";
+const SCALAR_ONE_ADDRESS: &str = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
+const SCALAR_ONE_WIF: &str = "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn";
+
+#[test]
+fn test_from_hex_stdin_matches_argument_form() {
+    let piped = run_btc_keygen_with_stdin(
+        &["generate", "--from-hex", "-", "--hex", "--pubkey", "--json"],
+        format!("{SCALAR_ONE_HEX}\n").as_bytes(),
+    );
+    assert!(piped.status.success(), "piping the key must succeed");
+
+    let on_argv = run_btc_keygen(&[
+        "generate",
+        "--from-hex",
+        SCALAR_ONE_HEX,
+        "--hex",
+        "--pubkey",
+        "--json",
+    ]);
+
+    // Same key in, byte-identical keypair out, whichever channel carried it.
+    assert_eq!(
+        piped.stdout, on_argv.stdout,
+        "stdin and argument forms must produce identical output"
+    );
+    let stdout = String::from_utf8(piped.stdout).unwrap();
+    assert!(stdout.contains(SCALAR_ONE_ADDRESS));
+    assert!(stdout.contains(SCALAR_ONE_WIF));
+}
+
+#[test]
+fn test_from_hex_stdin_tolerates_no_trailing_newline() {
+    let output =
+        run_btc_keygen_with_stdin(&["generate", "--from-hex", "-"], SCALAR_ONE_HEX.as_bytes());
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains(SCALAR_ONE_ADDRESS));
+}
+
+#[test]
+fn test_from_hex_stdin_tolerates_crlf_and_whitespace() {
+    let output = run_btc_keygen_with_stdin(
+        &["generate", "--from-hex", "-"],
+        format!("  {SCALAR_ONE_HEX}  \r\n").as_bytes(),
+    );
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains(SCALAR_ONE_ADDRESS));
+}
+
+#[test]
+fn test_from_hex_stdin_accepts_uppercase() {
+    let output = run_btc_keygen_with_stdin(
+        &["generate", "--from-hex", "-"],
+        b"0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D\n",
+    );
+    assert!(output.status.success(), "uppercase hex must be accepted");
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"));
+}
+
+#[test]
+fn test_from_hex_stdin_empty_fails_loudly() {
+    let output = run_btc_keygen_with_stdin(&["generate", "--from-hex", "-"], b"");
+    assert!(
+        !output.status.success(),
+        "empty stdin must not silently generate a random key"
+    );
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains("failed to read private key"),
+        "must say why, got:\n{stderr}"
+    );
+}
+
+#[test]
+fn test_from_hex_stdin_rejects_overlong_input() {
+    let junk = vec![b'0'; 4096];
+    let output = run_btc_keygen_with_stdin(&["generate", "--from-hex", "-"], &junk);
+    assert!(
+        !output.status.success(),
+        "over-long input must be rejected, never truncated to a different key"
+    );
+}
+
+#[test]
+fn test_stdin_form_emits_no_argv_warning() {
+    let piped = run_btc_keygen_with_stdin(
+        &["generate", "--from-hex", "-"],
+        format!("{SCALAR_ONE_HEX}\n").as_bytes(),
+    );
+    let stderr = String::from_utf8(piped.stderr).unwrap();
+    assert!(
+        !stderr.contains("command-line argument"),
+        "the safe channel must not be scolded, got:\n{stderr}"
+    );
+}
+
+#[test]
+fn test_argv_form_still_works_but_warns() {
+    let output = run_btc_keygen(&["generate", "--from-hex", SCALAR_ONE_HEX]);
+    assert!(
+        output.status.success(),
+        "the argument form must keep working for existing scripts"
+    );
+
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains("command-line argument") && stderr.contains("history"),
+        "passing a key on argv must warn about history and ps, got:\n{stderr}"
+    );
+    assert!(
+        stderr.contains("--from-hex -"),
+        "the warning must point at the safe alternative"
+    );
+
+    // The warning goes to stderr only: stdout stays machine-readable.
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(!stdout.to_lowercase().contains("warning"));
 }
 
 // ---------------------------------------------------------------

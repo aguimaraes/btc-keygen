@@ -1,5 +1,6 @@
+use crate::secret::SecretWif;
 use bitcoin_hashes::sha256;
-use zeroize::Zeroize;
+use zeroize::Zeroizing;
 
 /// Encodes a private key as a Wallet Import Format (WIF) string.
 ///
@@ -9,67 +10,68 @@ use zeroize::Zeroize;
 ///
 /// The encoding applies mainnet prefix `0x80`, appends the `0x01` compression
 /// flag, and checksums with double SHA-256 before Base58 encoding.
-pub fn encode_wif(private_key: &crate::keygen::PrivateKey) -> String {
-    // Build payload: 0x80 | 32 key bytes | 0x01 (compressed flag)
-    let mut payload = [0u8; 34];
+///
+/// The result is a [`SecretWif`]: it erases itself on drop and redacts its
+/// `Debug` output. No intermediate `String` or `Vec` ever holds the key.
+#[must_use]
+pub fn encode_wif(private_key: &crate::keygen::PrivateKey) -> SecretWif {
+    // Payload: 0x80 | 32 key bytes | 0x01 (compressed flag) | 4 checksum bytes
+    let mut payload = Zeroizing::new([0u8; 38]);
     payload[0] = 0x80;
     payload[1..33].copy_from_slice(private_key.as_bytes());
     payload[33] = 0x01;
 
-    // Checksum: first 4 bytes of SHA256(SHA256(payload))
-    let hash1 = sha256::Hash::hash(&payload).to_byte_array();
+    // Checksum: first 4 bytes of SHA256(SHA256(payload)).
+    // The hashes need no erasure: SHA-256 of the payload does not reveal it.
+    let hash1 = sha256::Hash::hash(&payload[..34]).to_byte_array();
     let hash2 = sha256::Hash::hash(&hash1).to_byte_array();
-    let checksum = &hash2[..4];
+    payload[34..].copy_from_slice(&hash2[..4]);
 
-    // Final data: payload + checksum = 38 bytes
-    let mut data = [0u8; 38];
-    data[..34].copy_from_slice(&payload);
-    data[34..38].copy_from_slice(checksum);
-
-    let wif = base58_encode(&data);
-    payload.zeroize();
-    data.zeroize();
-    wif
+    base58_encode_wif(&payload)
 }
 
 const BASE58_ALPHABET: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
-fn base58_encode(data: &[u8]) -> String {
-    // Count leading zeros: each becomes a '1' in Base58.
-    let leading_zeros = data.iter().take_while(|&&b| b == 0).count();
+/// Base58-encodes a 38-byte WIF payload straight into a [`SecretWif`].
+///
+/// Allocation-free: the repeated division by 58 happens in place in a fixed
+/// stack buffer that erases itself, and each digit is written directly into the
+/// secret's final resting place. Nothing here can leave a stray heap copy.
+///
+/// A `0x80`-prefixed 38-byte payload always encodes to exactly 52 Base58
+/// digits, which is why the output length is fixed and why there are no
+/// leading zeros to translate into `1` characters.
+fn base58_encode_wif(payload: &[u8; 38]) -> SecretWif {
+    let mut num = Zeroizing::new(*payload);
+    let mut wif = SecretWif::zeroed();
+    let digits = wif.bytes_mut();
 
-    // Convert bytes to a big integer (big-endian), then repeatedly divide by 58.
-    let mut num: Vec<u8> = data.to_vec();
-    let mut digits: Vec<u8> = Vec::new();
+    // Most significant byte that is still non-zero; the divisions shrink the
+    // number from the front.
+    let mut first = 0;
+    // Digits come out least-significant first, so fill from the back.
+    let mut next = digits.len();
 
-    while !num.is_empty() {
+    while first < num.len() {
         let mut remainder = 0u32;
-        let mut next = Vec::new();
-
-        for &byte in &num {
-            let accumulator = (remainder << 8) | byte as u32;
-            let quotient = accumulator / 58;
+        for byte in &mut num[first..] {
+            let accumulator = (remainder << 8) | u32::from(*byte);
+            *byte = (accumulator / 58) as u8;
             remainder = accumulator % 58;
-
-            if !next.is_empty() || quotient > 0 {
-                next.push(quotient as u8);
-            }
         }
 
-        digits.push(remainder as u8);
-        num = next;
+        next -= 1;
+        digits[next] = BASE58_ALPHABET[remainder as usize];
+
+        while first < num.len() && num[first] == 0 {
+            first += 1;
+        }
     }
 
-    // Build result: leading '1's + reversed digits.
-    let mut result = String::with_capacity(leading_zeros + digits.len());
-    for _ in 0..leading_zeros {
-        result.push('1');
-    }
-    for &d in digits.iter().rev() {
-        result.push(BASE58_ALPHABET[d as usize] as char);
-    }
-
-    result
+    // Guarantees the invariant `expose_str` depends on: every byte was written
+    // from BASE58_ALPHABET, so the buffer is printable ASCII.
+    assert_eq!(next, 0, "WIF payload must encode to exactly 52 digits");
+    wif
 }
 
 #[cfg(test)]
@@ -78,11 +80,7 @@ mod tests {
     use crate::keygen::PrivateKey;
 
     fn key_from_hex(hex: &str) -> PrivateKey {
-        let mut bytes = [0u8; 32];
-        for i in 0..32 {
-            bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).unwrap();
-        }
-        PrivateKey::from_bytes(bytes).unwrap()
+        PrivateKey::from_hex(hex).unwrap()
     }
 
     // Known-answer test: private key = 1.
@@ -91,7 +89,10 @@ mod tests {
     fn test_wif_vector_scalar_one() {
         let key = key_from_hex("0000000000000000000000000000000000000000000000000000000000000001");
         let wif = encode_wif(&key);
-        assert_eq!(wif, "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn");
+        assert_eq!(
+            wif.expose_str(),
+            "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+        );
     }
 
     // Known-answer test: Bitcoin wiki WIF example.
@@ -101,7 +102,10 @@ mod tests {
     fn test_wif_vector_two() {
         let key = key_from_hex("0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D");
         let wif = encode_wif(&key);
-        assert_eq!(wif, "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617");
+        assert_eq!(
+            wif.expose_str(),
+            "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
+        );
     }
 
     #[test]
@@ -115,9 +119,9 @@ mod tests {
         for key in &keys {
             let wif = encode_wif(key);
             assert!(
-                wif.starts_with('K') || wif.starts_with('L'),
+                wif.expose_str().starts_with('K') || wif.expose_str().starts_with('L'),
                 "compressed mainnet WIF must start with K or L, got: {}",
-                wif
+                wif.expose_str()
             );
         }
     }
@@ -127,7 +131,7 @@ mod tests {
         let key = key_from_hex("0000000000000000000000000000000000000000000000000000000000000001");
         let wif = encode_wif(&key);
         assert_eq!(
-            wif.len(),
+            wif.expose_str().len(),
             52,
             "compressed mainnet WIF must be 52 characters"
         );
@@ -138,7 +142,7 @@ mod tests {
         let key = key_from_hex("0000000000000000000000000000000000000000000000000000000000000001");
         let wif = encode_wif(&key);
         let base58_alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-        for ch in wif.chars() {
+        for ch in wif.expose_str().chars() {
             assert!(
                 base58_alphabet.contains(ch),
                 "WIF contains invalid Base58 character: '{}'",
@@ -180,7 +184,7 @@ mod tests {
     fn test_wif_checksum_valid() {
         let key = key_from_hex("0000000000000000000000000000000000000000000000000000000000000001");
         let wif = encode_wif(&key);
-        let decoded = base58_decode(&wif);
+        let decoded = base58_decode(wif.expose_str());
 
         // WIF for compressed mainnet: 1 + 32 + 1 + 4 = 38 bytes.
         assert_eq!(decoded.len(), 38, "decoded WIF must be 38 bytes");

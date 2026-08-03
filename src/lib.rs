@@ -12,6 +12,7 @@
 //!
 //! // 2. Encode as WIF (for wallet import)
 //! let wif = btc_keygen::encode_wif(&key);
+//! println!("{}", wif.expose_str());
 //!
 //! // 3. Derive the compressed public key
 //! let pubkey = btc_keygen::derive_pubkey(&key);
@@ -28,8 +29,16 @@
 //!
 //! - Entropy comes from the OS CSPRNG via [`getrandom`](https://docs.rs/getrandom).
 //! - Private key bytes are zeroized in memory when [`PrivateKey`] is dropped.
-//!   The `String` returned by [`encode_wif`] contains the key too; protecting
-//!   it is the caller's responsibility.
+//! - Secret output never leaves this crate as a `String`. [`encode_wif`] returns
+//!   a [`SecretWif`] and [`PrivateKey::to_hex`] returns a [`SecretKeyHex`]:
+//!   fixed-size buffers that zeroize on drop, redact their `Debug`, and cannot
+//!   be cloned, copied, or printed with `{}`. They are filled in place, so no
+//!   secret-bearing `String`, `Vec`, or `format!` temporary is allocated along
+//!   the way.
+//! - Exposing a secret is explicit (`expose_bytes`, `expose_str`) and is the
+//!   point where copies become the caller's responsibility: writing the bytes
+//!   to a terminal, or copying them into a `String`, puts key material in
+//!   memory this crate cannot erase.
 //! - No networking code, so the crate cannot leak secrets over the network.
 //! - Elliptic curve operations use Bitcoin Core's
 //!   [`libsecp256k1`](https://docs.rs/secp256k1).
@@ -40,12 +49,14 @@ pub(crate) mod address;
 pub(crate) mod entropy;
 pub(crate) mod keygen;
 pub(crate) mod pubkey;
+pub(crate) mod secret;
 pub(crate) mod wif;
 
 pub use address::derive_address;
 pub use keygen::PrivateKey;
 pub use keygen::generate;
 pub use pubkey::derive_pubkey;
+pub use secret::{SecretAscii, SecretKeyHex, SecretWif};
 pub use wif::encode_wif;
 
 /// Error returned when key generation fails.
@@ -94,10 +105,15 @@ mod pipeline_tests {
 
         assert_eq!(private_key.as_bytes(), &key_bytes);
 
-        let wif_str = wif::encode_wif(&private_key);
+        let wif = wif::encode_wif(&private_key);
         assert_eq!(
-            wif_str,
+            wif.expose_str(),
             "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+        );
+
+        assert_eq!(
+            private_key.to_hex().expose_str(),
+            "0000000000000000000000000000000000000000000000000000000000000001"
         );
 
         let compressed_pubkey = pubkey::derive_pubkey(&private_key);
@@ -123,10 +139,10 @@ mod pipeline_tests {
         let entropy = FixedEntropy::new(key_bytes.to_vec());
         let private_key = keygen::generate_with_entropy(&entropy).expect("generation must succeed");
 
-        let wif_str = wif::encode_wif(&private_key);
+        let wif = wif::encode_wif(&private_key);
         // WIF for private key = 2 (compressed, mainnet).
         assert_eq!(
-            wif_str,
+            wif.expose_str(),
             "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU74NMTptX4"
         );
 
@@ -164,6 +180,9 @@ mod pipeline_tests {
         assert_ne!(key_a.as_bytes(), key_b.as_bytes());
         assert_ne!(pubkey_a, pubkey_b);
         assert_ne!(addr_a, addr_b);
-        assert_ne!(wif::encode_wif(&key_a), wif::encode_wif(&key_b));
+        assert_ne!(
+            wif::encode_wif(&key_a).expose_str(),
+            wif::encode_wif(&key_b).expose_str()
+        );
     }
 }
