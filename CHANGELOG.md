@@ -4,6 +4,58 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 2026-08-03
+
+### Added
+
+- `--from-hex -` reads the private key from stdin, keeping it out of the process
+  argument list and the shell history; it prompts when run interactively
+- Import from stdin tolerates a missing trailing newline, CRLF, surrounding
+  whitespace, and uppercase hex, and rejects empty or over-long input rather
+  than silently deriving a different key
+- `SecretWif` and `SecretKeyHex` (aliases of `SecretAscii<N>`): fixed-size
+  buffers that zeroize on drop, redact their `Debug` output, and cannot be
+  cloned, copied, or printed with `{}`
+- `PrivateKey::to_hex()` returns the raw private key as a `SecretKeyHex`
+- A memory-residue test suite (`tests/no_secret_residue.rs`) that records the
+  contents of every freed heap block and asserts none still holds key material,
+  with a per-operation allocation and byte budget
+
+### Changed
+
+- **Breaking:** `encode_wif` returns `SecretWif` instead of `String`, so library
+  callers get erase-on-drop behavior instead of having to add it themselves
+- **Breaking:** `is_valid_key` takes `&[u8; 32]` instead of `[u8; 32]`, so
+  testing a candidate key no longer copies it
+- The WIF and the private-key hex are written directly into their result buffer,
+  which takes encoding a WIF from 134 heap allocations to one, and the private
+  key hex from 35 to one. None of those short-lived buffers were erased before
+  being freed, so each one left a copy of key material on the heap
+- `PrivateKey` keeps its bytes in a heap buffer, so moving one copies a pointer
+  instead of memcpying the key into a fresh stack slot that nothing erases
+- Every constructor fills that buffer in place: OS entropy is written straight
+  into it, and `from_hex` decodes into it, so an assembled key is never staged
+  in a bare stack array
+- The documentation now states what erasure does not cover: memory the OS moved
+  to swap or a crash dump, the stack libsecp256k1 uses while deriving a public
+  key, copies the optimizer keeps alive, and anything obtained through
+  `as_bytes()`, `to_secret_key()`, or an `expose_*` method
+- CLI output is unchanged, byte for byte, across every flag combination
+
+### Deprecated
+
+- Passing the private key as an argument value (`--from-hex <HEX>`), which the
+  shell writes to its history file and which is visible to `ps` for the lifetime
+  of the command. Use `--from-hex -` instead. Removal is scheduled for 0.4.0
+
+### Fixed
+
+- `PrivateKey::from_hex` no longer leaves an unerased copy of the decoded key in
+  a stack buffer
+- `derive_pubkey` erases the `secp256k1::SecretKey` copy it creates, and
+  `PrivateKey::to_secret_key` now documents that the type it returns is `Copy`,
+  does not erase itself, and falls outside the crate's guarantees
+
 ## [0.2.0] - 2026-08-02
 
 ### Added
@@ -130,6 +182,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - GitHub Sponsors and Bitcoin donation address
 - Threat model, security assumptions, and dependency documentation
 
+[0.3.0]: https://github.com/aguimaraes/btc-keygen/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/aguimaraes/btc-keygen/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/aguimaraes/btc-keygen/compare/v0.0.5...v0.1.0
 [0.0.5]: https://github.com/aguimaraes/btc-keygen/compare/v0.0.4...v0.0.5
